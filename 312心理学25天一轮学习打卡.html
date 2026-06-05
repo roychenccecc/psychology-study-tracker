@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>312心理学25天一轮学习打卡</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #18202a;
+      --muted: #667085;
+      --line: #d9dee7;
+      --brand: #2f6fed;
+      --brand-soft: #e8f0ff;
+      --done: #157347;
+      --rest: #f3efe8;
+      --intense: #eef6ef;
+      --light: #eef2f7;
+      --shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.55;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(246, 247, 249, 0.94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+
+    button:hover {
+      filter: brightness(0.98);
+    }
+
+    main {
+      padding: 22px 0 40px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric {
+      padding: 14px;
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric .value {
+      margin-top: 4px;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .progress {
+      height: 10px;
+      background: #e6e9ef;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: var(--brand);
+      transition: width 160ms ease;
+    }
+
+    section {
+      margin-top: 16px;
+      padding: 16px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 18px;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .start-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    label.task {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 8px;
+      align-items: start;
+      padding: 7px 8px;
+      border-radius: 8px;
+    }
+
+    label.task:hover {
+      background: #f3f6fb;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin: 3px 0 0;
+      accent-color: var(--brand);
+    }
+
+    .task.done span {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      min-width: 1120px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f1f4f8;
+      color: #344054;
+      font-weight: 700;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tr.intense td:first-child {
+      border-left: 5px solid #2f8f46;
+    }
+
+    tr.light td:first-child {
+      border-left: 5px solid #6b7c93;
+    }
+
+    tr.normal td:first-child {
+      border-left: 5px solid #6b7c93;
+    }
+
+    tr.rest td:first-child {
+      border-left: 5px solid #b8893a;
+    }
+
+    .type {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .type.intense {
+      background: var(--intense);
+      color: #1f6b34;
+    }
+
+    .type.light {
+      background: var(--light);
+      color: #475467;
+    }
+
+    .type.normal {
+      background: var(--light);
+      color: #475467;
+    }
+
+    .type.rest {
+      background: var(--rest);
+      color: #8a5a13;
+    }
+
+    .day-done {
+      min-width: 190px;
+    }
+
+    .segment-task {
+      min-width: 170px;
+    }
+
+    .segment-task label.task {
+      grid-template-columns: 22px 1fr;
+      padding: 0;
+    }
+
+    .segment-task label.task:hover {
+      background: transparent;
+    }
+
+    .period-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .stream-badge {
+      display: inline-block;
+      margin-left: 6px;
+      border-radius: 999px;
+      padding: 1px 6px;
+      background: var(--brand-soft);
+      color: #2856b6;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .segment-plan {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .segment-actual {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .actual-date {
+      display: block;
+      margin: 4px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .edit-date {
+      display: none;
+      margin-top: 4px;
+      padding: 5px 8px;
+      font-size: 13px;
+    }
+
+    .day-done.has-actual .edit-date {
+      display: inline-block;
+    }
+
+    .chapter-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .chapter {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .chapter-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .chapter-tasks {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .stat .chapter-tasks {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .mini {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .mini input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 116px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      resize: vertical;
+      font: inherit;
+      background: #fff;
+    }
+
+    .debt-guide {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .debt-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .debt-item strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 860px) {
+      .top,
+      .grid,
+      .chapter-grid,
+      .debt-guide,
+      .rules {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap top">
+      <div>
+        <h1>312心理学25天一轮学习打卡</h1>
+        <p class="subtitle">2026-06-05 启动夜；2026-06-06 起执行，最多25天，能提前就提前</p>
+      </div>
+      <div class="actions">
+        <button id="todayBtn" class="primary" type="button">定位今天</button>
+        <button id="exportBtn" type="button">导出进度</button>
+        <button id="resetBtn" type="button">清空勾选</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="grid">
+      <div class="card metric">
+        <div class="label">总进度</div>
+        <div class="value" id="totalValue">0%</div>
+        <div class="progress"><div class="bar" id="totalBar"></div></div>
+      </div>
+      <div class="card metric">
+        <div class="label">每日闭环</div>
+        <div class="value" id="dailyValue">0/25</div>
+        <div class="progress"><div class="bar" id="dailyBar"></div></div>
+      </div>
+      <div class="card metric">
+        <div class="label">普心章节</div>
+        <div class="value" id="psychValue">0/33</div>
+        <div class="progress"><div class="bar" id="psychBar"></div></div>
+      </div>
+      <div class="card metric">
+        <div class="label">统计章节</div>
+        <div class="value" id="statValue">0/24</div>
+        <div class="progress"><div class="bar" id="statBar"></div></div>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2>固定规则</h2>
+      <ul class="rules">
+        <li>高强度日：周日、周二、周三。</li>
+        <li>高强度日晚上最后1小时固定给英语。</li>
+        <li>周六晚上完全休息。</li>
+        <li>统计尽量固定下午做。</li>
+        <li>普心：晚上听课 -> 最近高强度日上午看书 -> 晚上做题。</li>
+        <li>错题、订正、回书、复习不排入主计划，用碎片化时间处理。</li>
+        <li>最多25天完成一轮，能提前就提前；不做二轮背诵。</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>记录方式</h2>
+      <div class="debt-guide">
+        <div class="debt-item">
+          <strong>分段打勾</strong>
+          <span class="small">上午、下午、晚上分别勾，做到哪里记到哪里。</span>
+        </div>
+        <div class="debt-item">
+          <strong>自动滚动</strong>
+          <span class="small">每段确认系统时间；普心只滚动普心，统计只滚动统计。</span>
+        </div>
+        <div class="debt-item">
+          <strong>可以修改</strong>
+          <span class="small">完成后如果日期不对，点“修改日期”重新校准。</span>
+        </div>
+      </div>
+      <p class="small" id="rollingInfo" style="margin:10px 0 0;"></p>
+    </section>
+
+    <section class="card">
+      <h2>启动夜：2026-06-05 周五</h2>
+      <div class="start-list">
+        <label class="task"><input type="checkbox" data-id="start-psych-4-lecture"><span>普心：听第4章《知觉》</span></label>
+        <label class="task"><input type="checkbox" data-id="start-mark-three"><span>只标三类内容：老师强调的概念、选择题易考点、没听懂的地方</span></label>
+        <label class="task"><input type="checkbox" data-id="start-one-sentence"><span>听完写一句话：第4章最重要的知觉规律/理论/现象是什么？</span></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>最多25天每日打卡</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>基准日期</th>
+              <th>Day</th>
+              <th>日型</th>
+              <th>上午</th>
+              <th>下午</th>
+              <th>晚上</th>
+              <th>闭环记录</th>
+            </tr>
+          </thead>
+          <tbody id="dailyBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>普心章节进度</h2>
+      <div class="chapter-grid" id="psychChapters"></div>
+    </section>
+
+    <section class="card">
+      <h2>统计章节进度</h2>
+      <div class="chapter-grid" id="statChapters"></div>
+    </section>
+
+    <section class="card">
+      <h2>弹性任务：第14章人生全程发展</h2>
+      <div class="start-list">
+        <label class="task"><input type="checkbox" data-id="extend-14-read"><span>第14章人生全程发展：看书</span></label>
+        <label class="task"><input type="checkbox" data-id="extend-14-exercise"><span>第14章人生全程发展：做题</span></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>每日复盘</h2>
+      <p class="small">自动保存在本浏览器。每天写三行就够。</p>
+      <textarea id="review" placeholder="今天完成：&#10;卡住的点：&#10;明天第一件事："></textarea>
+    </section>
+  </main>
+
+  <script>
+    const storageKey = "psych312-plan-202606";
+    const reviewKey = "psych312-review-202606";
+    const baseStartDate = "2026-06-06";
+    const weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    const streamNames = {
+      psych: "普心",
+      stat: "统计",
+      fixed: "固定"
+    };
+
+    const daily = [
+      ["6/6 周六", 1, "rest", "周六晚休", "第4章教材浏览", "第12章方差分析开头", "周六晚休"],
+      ["6/7 周日", 2, "intense", "高强度", "第4章看书", "第12章单因素ANOVA", "第4章做题；英语1h"],
+      ["6/8 周一", 3, "normal", "普通日", "第5章教材预习", "第12章练习", "听第5章意识"],
+      ["6/9 周二", 4, "intense", "高强度", "第5章看书", "第12章练习", "第5章做题；英语1h"],
+      ["6/10 周三", 5, "intense", "高强度", "第6章教材预习", "第13章重复测量方差分析", "听第6章记忆；英语1h"],
+      ["6/11 周四", 6, "normal", "普通日", "上午不排固定任务", "第13章练习", "听第6章记忆"],
+      ["6/12 周五", 7, "normal", "普通日", "第7章教材预习", "第13章练习", "听第7章思维"],
+      ["6/13 周六", 8, "rest", "周六晚休", "第6章教材预读", "第14章预习", "周六晚休"],
+      ["6/14 周日", 9, "intense", "高强度", "第6章看书", "第14章双因素ANOVA", "第6章做题；英语1h"],
+      ["6/15 周一", 10, "normal", "普通日", "第7章教材预习", "第14章练习", "听第7章思维"],
+      ["6/16 周二", 11, "intense", "高强度", "第7章看书", "第12-14章方差分析整合", "第7章做题；英语1h"],
+      ["6/17 周三", 12, "intense", "高强度", "第8章语言看书", "第15章相关", "第8章做题；英语1h"],
+      ["6/18 周四", 13, "normal", "普通日", "上午不排固定任务", "第15章练习", "听第9章动机"],
+      ["6/19 周五", 14, "normal", "普通日", "第9章教材预习", "第16章回归", "听第10章情绪"],
+      ["6/20 周六", 15, "rest", "周六晚休", "第9章教材预读", "第16章做题", "周六晚休"],
+      ["6/21 周日", 16, "intense", "高强度", "第9章看书", "第15-16章综合练习", "第9章做题；英语1h"],
+      ["6/22 周一", 17, "normal", "普通日", "第11章教材预习", "第16章练习", "听第11章智力"],
+      ["6/23 周二", 18, "intense", "高强度", "第10章看书", "第17章卡方", "第10章做题；英语1h"],
+      ["6/24 周三", 19, "intense", "高强度", "第11章看书", "第17章做题", "第11章做题；英语1h"],
+      ["6/25 周四", 20, "normal", "普通日", "上午不排固定任务", "第18章二项式检验", "听第12章人格"],
+      ["6/26 周五", 21, "normal", "普通日", "第13章教材预习", "第18章做题", "听第13章学习"],
+      ["6/27 周六", 22, "rest", "周六晚休", "第12章教材预读", "第19章方法选择", "周六晚休"],
+      ["6/28 周日", 23, "intense", "高强度", "第12章看书", "第19章做题", "第12章做题；英语1h"],
+      ["6/29 周一", 24, "normal", "普通日", "第14章教材预习", "第19章方法选择练习", "听第14章人生全程发展"],
+      ["6/30 周二", 25, "intense", "高强度", "第13章看书", "第19章综合练习", "第13章做题；英语1h"]
+    ];
+
+    const psych = [
+      ["第4章 知觉", "6/5听课，6/7闭环"],
+      ["第5章 意识", "6/8听课，6/9闭环"],
+      ["第6章 记忆", "6/10-6/11听课，6/14闭环"],
+      ["第7章 思维", "6/12-6/15听课，6/16闭环"],
+      ["第8章 语言", "6/17闭环"],
+      ["第9章 动机", "6/18听课，6/21闭环"],
+      ["第10章 情绪", "6/19听课，6/23闭环"],
+      ["第11章 智力", "6/22听课，6/24闭环"],
+      ["第12章 人格", "6/25听课，6/28闭环"],
+      ["第13章 学习", "6/26听课，6/30闭环"],
+      ["第14章 人生全程发展", "6/29听课；看书和做题按实际进度提前或顺延"]
+    ];
+
+    const stat = [
+      ["第12章 方差分析简介", "6/6-6/9"],
+      ["第13章 重复测量方差分析", "6/10-6/12"],
+      ["第14章 双因素方差分析", "6/13-6/16"],
+      ["第15章 相关", "6/17-6/18"],
+      ["第16章 回归", "6/19-6/21"],
+      ["第17章 卡方", "6/23-6/24"],
+      ["第18章 二项式检验", "6/25-6/26"],
+      ["第19章 选择恰当统计方法", "6/27-6/30"]
+    ];
+
+    function typeLabel(kind, text) {
+      return `<span class="type ${kind}">${text}</span>`;
+    }
+
+    function parseLocalDate(isoDate) {
+      const [year, month, day] = isoDate.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function toISODate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function addDays(isoDate, days) {
+      const date = parseLocalDate(isoDate);
+      date.setDate(date.getDate() + days);
+      return toISODate(date);
+    }
+
+    function daysBetween(laterISO, earlierISO) {
+      const later = parseLocalDate(laterISO);
+      const earlier = parseLocalDate(earlierISO);
+      return Math.round((later - earlier) / (1000 * 60 * 60 * 24));
+    }
+
+    function formatPlanDate(isoDate) {
+      const date = parseLocalDate(isoDate);
+      return `${date.getMonth() + 1}/${date.getDate()} ${weekdayNames[date.getDay()]}`;
+    }
+
+    function todayISO() {
+      return toISODate(new Date());
+    }
+
+    function nowLocalDateTime() {
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function dateFromDateTime(value) {
+      return value.slice(0, 10);
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "";
+      const [date, time] = value.split("T");
+      return `${date} ${time}`;
+    }
+
+    function baseDateForDay(day) {
+      return addDays(baseStartDate, day - 1);
+    }
+
+    function streamShiftDays(stream) {
+      const state = readState();
+      const shifts = state.streamShiftDays || {};
+      return Number(shifts[stream] || 0);
+    }
+
+    function plannedDateForSegment(day, stream) {
+      const shift = stream === "psych" || stream === "stat" ? streamShiftDays(stream) : 0;
+      return addDays(baseStartDate, day - 1 + shift);
+    }
+
+    function renderDaily() {
+      const body = document.getElementById("dailyBody");
+      body.innerHTML = daily.map(([date, day, kind, type, morningTask, afternoonTask, eveningTask]) => {
+        const id = `daily-${day}`;
+        const baseDate = baseDateForDay(day);
+        return `
+          <tr id="day-${day}" class="${kind}">
+            <td data-plan-date="${id}">${formatPlanDate(baseDate)}</td>
+            <td>Day ${day}</td>
+            <td>${typeLabel(kind, type)}</td>
+            ${segmentCell(id, day, "morning", "上午", morningTask)}
+            ${segmentCell(id, day, "afternoon", "下午", afternoonTask)}
+            ${segmentCell(id, day, "evening", "晚上", eveningTask)}
+            <td class="day-done">
+              <span class="small" data-day-status="${id}">未闭环</span>
+              <span class="actual-date" data-actual="${id}"></span>
+              <button class="edit-date" type="button" data-edit-date="${id}">修改日期</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function segmentCell(dayId, day, period, label, task) {
+      const stream = segmentStream(period, task);
+      if (isNonTaskSegment(task)) {
+        return `
+          <td class="segment-task">
+            <span class="period-label">${label}<span class="stream-badge">${streamNames[stream]}</span></span>
+            <span class="segment-plan">不计入闭环</span>
+            <span class="small">${task}</span>
+          </td>
+        `;
+      }
+      return `
+        <td class="segment-task">
+          <span class="period-label">${label}<span class="stream-badge">${streamNames[stream]}</span></span>
+          <span class="segment-plan">计划：${formatPlanDate(plannedDateForSegment(day, stream))}</span>
+          <label class="task">
+            <input type="checkbox" data-id="${dayId}-${period}" data-stream="${stream}">
+            <span>${task}</span>
+          </label>
+          <span class="segment-actual" data-segment-actual="${dayId}-${period}"></span>
+        </td>
+      `;
+    }
+
+    function isNonTaskSegment(task) {
+      return task.includes("上午不排固定任务") || task.includes("周六晚休");
+    }
+
+    function segmentStream(period, task) {
+      if (period === "afternoon") return "stat";
+      if (task.includes("周六晚休")) return "fixed";
+      if (task.includes("上午不排固定任务")) return "fixed";
+      return "psych";
+    }
+
+    function renderChapters(items, rootId, prefix, tasks, className = "") {
+      const root = document.getElementById(rootId);
+      root.innerHTML = items.map(([title, note], index) => {
+        const checks = tasks.map(task => `
+          <label class="mini"><input type="checkbox" data-id="${prefix}-${index}-${task}">${task}</label>
+        `).join("");
+        return `
+          <div class="chapter ${className}">
+            <div class="chapter-title">${title}</div>
+            <div class="chapter-tasks">${checks}</div>
+            <div class="small" style="margin-top:8px;">${note}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function readState() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function writeState(state) {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    }
+
+    function updateTaskStyles() {
+      document.querySelectorAll("label.task").forEach(label => {
+        const input = label.querySelector("input");
+        label.classList.toggle("done", input.checked);
+      });
+      const state = readState();
+      document.querySelectorAll("[data-segment-actual]").forEach(node => {
+        const actualTime = state[`${node.dataset.segmentActual}-actualTime`];
+        node.textContent = actualTime ? `完成：${formatDateTime(actualTime)}` : "";
+      });
+      daily.forEach(([, day]) => {
+        const id = `daily-${day}`;
+        const statusNode = document.querySelector(`[data-day-status="${id}"]`);
+        if (statusNode) {
+          const segments = daySegments(id);
+          const doneCount = segments.filter(segmentId => Boolean(state[segmentId])).length;
+          statusNode.textContent = state[id] ? "已闭环" : `${doneCount}/${segments.length}`;
+        }
+      });
+      document.querySelectorAll("[data-actual]").forEach(node => {
+        const id = node.dataset.actual;
+        const actualDate = state[`${id}-actual`];
+        const cell = node.closest(".day-done");
+        if (actualDate) {
+          node.textContent = `实际完成：${actualDate}`;
+          cell?.classList.add("has-actual");
+        } else {
+          node.textContent = "";
+          cell?.classList.remove("has-actual");
+        }
+      });
+      updateRollingInfo();
+    }
+
+    function applyState() {
+      const state = migrateState(readState());
+      document.querySelectorAll("input[type='checkbox'][data-id]").forEach(input => {
+        input.checked = Boolean(state[input.dataset.id]);
+      });
+      document.getElementById("review").value = localStorage.getItem(reviewKey) || "";
+      updateTaskStyles();
+      updateProgress();
+    }
+
+    function bindState() {
+      document.addEventListener("change", event => {
+        const input = event.target;
+        if (input.matches("input[type='checkbox'][data-id]")) {
+          if (isDailySegmentId(input.dataset.id)) {
+            handleDailySegment(input);
+            return;
+          }
+          const state = readState();
+          state[input.dataset.id] = input.checked;
+          writeState(state);
+          updateTaskStyles();
+          updateProgress();
+        }
+      });
+
+      document.addEventListener("click", event => {
+        const button = event.target.closest("[data-edit-date]");
+        if (button) {
+          editDailyActualDate(button.dataset.editDate);
+        }
+      });
+
+      document.getElementById("review").addEventListener("input", event => {
+        localStorage.setItem(reviewKey, event.target.value);
+      });
+    }
+
+    function migrateState(state) {
+      let changed = false;
+      if (!state.streamShiftDays && state.planShiftDays) {
+        state.streamShiftDays = {
+          psych: Number(state.planShiftDays || 0),
+          stat: Number(state.planShiftDays || 0)
+        };
+        changed = true;
+      }
+      daily.forEach(([, day]) => {
+        const id = `daily-${day}`;
+        const segments = daySegments(id);
+        const hasAnySegment = segments.some(segmentId => Object.prototype.hasOwnProperty.call(state, segmentId));
+        if (state[id] && !hasAnySegment) {
+          segments.forEach(segmentId => {
+            state[segmentId] = true;
+          });
+          changed = true;
+        }
+      });
+      if (changed) writeState(state);
+      return state;
+    }
+
+    function daySegments(dayId) {
+      const day = Number(dayId.replace("daily-", ""));
+      const entry = daily.find(([, entryDay]) => entryDay === day);
+      if (!entry) return [];
+      const [, , , , morningTask, afternoonTask, eveningTask] = entry;
+      return [
+        ["morning", morningTask],
+        ["afternoon", afternoonTask],
+        ["evening", eveningTask]
+      ]
+        .filter(([, task]) => !isNonTaskSegment(task))
+        .map(([period]) => `${dayId}-${period}`);
+    }
+
+    function isDailySegmentId(id) {
+      return /^daily-\d+-(morning|afternoon|evening)$/.test(id);
+    }
+
+    function dayIdFromSegment(segmentId) {
+      return segmentId.match(/^(daily-\d+)-/)[1];
+    }
+
+    function allSegmentsDone(state, dayId) {
+      const segments = daySegments(dayId);
+      return segments.length > 0 && segments.every(segmentId => Boolean(state[segmentId]));
+    }
+
+    function validISODate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      return toISODate(parseLocalDate(value)) === value;
+    }
+
+    function validLocalDateTime(value) {
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false;
+      return validISODate(dateFromDateTime(value));
+    }
+
+    function streamCompletionMessage(stream, delta) {
+      const name = streamNames[stream] || "当前内容";
+      if (stream !== "psych" && stream !== "stat") {
+        return "这个时段不参与普心/统计滚动，只记录完成时间。";
+      }
+      if (delta < 0) return `${name}比当前计划提前${Math.abs(delta)}天完成。确认后，只让${name}后续任务整体提前${Math.abs(delta)}天。`;
+      if (delta > 0) return `${name}比当前计划晚${delta}天完成。确认后，只让${name}后续任务整体顺延${delta}天。`;
+      return `${name}与当前计划同一天完成，不调整其他学科。`;
+    }
+
+    function handleDailySegment(input) {
+      const segmentId = input.dataset.id;
+      const id = dayIdFromSegment(segmentId);
+      const stream = input.dataset.stream || "fixed";
+      const state = readState();
+      if (!input.checked && state[id]) {
+        if (!confirm("取消这个时段会取消这一天的闭环记录。计划日期不会自动回退，确定吗？")) {
+          input.checked = true;
+          return;
+        }
+      }
+
+      state[segmentId] = input.checked;
+
+      if (!input.checked) {
+        state[id] = false;
+        delete state[`${id}-actual`];
+        delete state[`${segmentId}-actualTime`];
+        writeState(state);
+        applyState();
+        return;
+      }
+
+      const day = Number(id.replace("daily-", ""));
+      const plannedDate = plannedDateForSegment(day, stream);
+      const defaultTime = state[`${segmentId}-actualTime`] || nowLocalDateTime();
+      const actualTime = prompt("确认这个时段的完成时间，可修改：", defaultTime);
+      if (actualTime === null) {
+        state[segmentId] = false;
+        writeState(state);
+        applyState();
+        return;
+      }
+      if (!validLocalDateTime(actualTime)) {
+        alert("时间格式请用 YYYY-MM-DDTHH:mm，例如 2026-06-07T20:30。");
+        state[segmentId] = false;
+        writeState(state);
+        applyState();
+        return;
+      }
+
+      const actualDate = dateFromDateTime(actualTime);
+      const delta = daysBetween(actualDate, plannedDate);
+      const shiftText = streamCompletionMessage(stream, delta);
+      if (!confirm(`${shiftText}\n\n计划日期：${plannedDate}\n完成时间：${formatDateTime(actualTime)}`)) {
+        state[segmentId] = false;
+        writeState(state);
+        applyState();
+        return;
+      }
+
+      if ((stream === "psych" || stream === "stat") && delta !== 0) {
+        state.streamShiftDays = state.streamShiftDays || {};
+        state.streamShiftDays[stream] = Number(state.streamShiftDays[stream] || 0) + delta;
+      }
+      state[`${segmentId}-actualTime`] = actualTime;
+
+      if (allSegmentsDone(state, id)) {
+        state[id] = true;
+        state[`${id}-actual`] = latestSegmentDate(state, id);
+        state[`${id}-status`] = "完成";
+      }
+
+      writeState(state);
+      renderDaily();
+      applyState();
+    }
+
+    function latestSegmentDate(state, dayId) {
+      const times = daySegments(dayId)
+        .map(segmentId => state[`${segmentId}-actualTime`])
+        .filter(Boolean)
+        .sort();
+      return times.length ? dateFromDateTime(times[times.length - 1]) : todayISO();
+    }
+
+    function editDailyActualDate(id) {
+      const state = readState();
+      const oldDate = state[`${id}-actual`] || todayISO();
+      const actualDate = prompt("修改完成日期：", oldDate);
+      if (actualDate === null) return;
+      if (!validISODate(actualDate)) {
+        alert("日期格式请用 YYYY-MM-DD，例如 2026-06-07。");
+        return;
+      }
+
+      const delta = daysBetween(actualDate, oldDate);
+      const editMessage = delta < 0
+        ? `完成日期提前${Math.abs(delta)}天。这个修改只更新闭环日期，不额外调整普心/统计滚动。`
+        : delta > 0
+          ? `完成日期推后${delta}天。这个修改只更新闭环日期，不额外调整普心/统计滚动。`
+          : "完成日期没有变化。确认保存吗？";
+      if (!confirm(`${editMessage}\n\n原完成日期：${oldDate}\n新完成日期：${actualDate}`)) return;
+
+      state[`${id}-actual`] = actualDate;
+      state[id] = true;
+      writeState(state);
+      renderDaily();
+      applyState();
+    }
+
+    function updateRollingInfo() {
+      const psychShift = streamShiftDays("psych");
+      const statShift = streamShiftDays("stat");
+      const describe = (name, shift) => {
+        if (shift < 0) return `${name}提前${Math.abs(shift)}天`;
+        if (shift > 0) return `${name}顺延${shift}天`;
+        return `${name}未提前/顺延`;
+      };
+      const text = `当前滚动计划：${describe("普心", psychShift)}；${describe("统计", statShift)}。英语和周六休息保持固定。`;
+      const node = document.getElementById("rollingInfo");
+      if (node) node.textContent = text;
+    }
+
+    function setMetric(valueId, barId, done, total, suffix = "") {
+      const percent = total ? Math.round((done / total) * 100) : 0;
+      document.getElementById(valueId).textContent = suffix ? `${done}/${total}${suffix}` : `${percent}%`;
+      document.getElementById(barId).style.width = `${percent}%`;
+    }
+
+    function countChecked(selector) {
+      const inputs = Array.from(document.querySelectorAll(selector));
+      return [inputs.filter(input => input.checked).length, inputs.length];
+    }
+
+    function updateProgress() {
+      const [allDone, allTotal] = countChecked("input[type='checkbox'][data-id]");
+      const [psychDone, psychTotal] = countChecked("input[data-id^='psych-']");
+      const [statDone, statTotal] = countChecked("input[data-id^='stat-']");
+      const state = readState();
+      const dailyTotal = daily.length;
+      const dailyDone = daily.filter(([, day]) => Boolean(state[`daily-${day}`])).length;
+
+      const percent = allTotal ? Math.round((allDone / allTotal) * 100) : 0;
+      document.getElementById("totalValue").textContent = `${percent}%`;
+      document.getElementById("totalBar").style.width = `${percent}%`;
+      setMetric("dailyValue", "dailyBar", dailyDone, dailyTotal, "");
+      setMetric("psychValue", "psychBar", psychDone, psychTotal, "");
+      setMetric("statValue", "statBar", statDone, statTotal, "");
+    }
+
+    function locateToday() {
+      const diff = daysBetween(todayISO(), baseStartDate) + 1;
+      const day = Math.min(Math.max(diff, 1), 25);
+      const row = document.getElementById(`day-${day}`);
+      if (row) {
+        row.scrollIntoView({ behavior: "smooth", block: "center" });
+        row.style.outline = "3px solid var(--brand)";
+        setTimeout(() => {
+          row.style.outline = "";
+        }, 1600);
+      }
+    }
+
+    function exportProgress() {
+      const payload = {
+        checkboxes: readState(),
+        review: localStorage.getItem(reviewKey) || "",
+        exportedAt: new Date().toISOString()
+      };
+      const text = JSON.stringify(payload, null, 2);
+      navigator.clipboard?.writeText(text).then(() => {
+        alert("进度已复制到剪贴板。");
+      }).catch(() => {
+        prompt("复制下面的进度数据：", text);
+      });
+    }
+
+    function resetProgress() {
+      if (!confirm("确定清空所有勾选和复盘吗？")) return;
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(reviewKey);
+      renderDaily();
+      applyState();
+    }
+
+    migrateState(readState());
+    renderDaily();
+    renderChapters(psych, "psychChapters", "psych", ["听课", "看书", "做题"]);
+    renderChapters(stat, "statChapters", "stat", ["看书", "做题", "方法判断"], "stat");
+    bindState();
+    applyState();
+
+    document.getElementById("todayBtn").addEventListener("click", locateToday);
+    document.getElementById("exportBtn").addEventListener("click", exportProgress);
+    document.getElementById("resetBtn").addEventListener("click", resetProgress);
+  </script>
+</body>
+</html>
