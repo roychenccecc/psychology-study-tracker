@@ -745,6 +745,162 @@
       return "psych";
     }
 
+    function chapterLinkId(stream, chapter, task) {
+      const base = stream === "psych" ? 4 : 12;
+      return `${stream}-${chapter - base}-${task}`;
+    }
+
+    function addUnique(items, value) {
+      if (!items.includes(value)) items.push(value);
+    }
+
+    function chapterNumbersInTask(task) {
+      const numbers = [];
+      const range = task.match(/第(\d+)-(\d+)章/);
+      if (range) {
+        const start = Number(range[1]);
+        const end = Number(range[2]);
+        for (let number = start; number <= end; number += 1) {
+          numbers.push(number);
+        }
+        return numbers;
+      }
+      const matches = task.matchAll(/第(\d+)章/g);
+      for (const match of matches) {
+        addUnique(numbers, Number(match[1]));
+      }
+      return numbers;
+    }
+
+    function chapterLinksForTask(task, stream) {
+      if (stream === "fixed") return [];
+      const links = [];
+
+      if (stream === "psych") {
+        for (const match of task.matchAll(/听第(\d+)章/g)) {
+          const chapter = Number(match[1]);
+          if (chapter >= 4 && chapter <= 14) addUnique(links, chapterLinkId("psych", chapter, "听课"));
+        }
+        for (const match of task.matchAll(/第(\d+)章[^；]*看书/g)) {
+          const chapter = Number(match[1]);
+          if (chapter >= 4 && chapter <= 14) addUnique(links, chapterLinkId("psych", chapter, "看书"));
+        }
+        for (const match of task.matchAll(/第(\d+)章[^；]*做题/g)) {
+          const chapter = Number(match[1]);
+          if (chapter >= 4 && chapter <= 14) addUnique(links, chapterLinkId("psych", chapter, "做题"));
+        }
+        return links;
+      }
+
+      const chapters = chapterNumbersInTask(task).filter(chapter => chapter >= 12 && chapter <= 19);
+      if (!chapters.length) return links;
+
+      const tasks = [];
+      if (/看书|例题/.test(task)) addUnique(tasks, "看书");
+      if (/做题|练习|综合/.test(task)) addUnique(tasks, "做题");
+      if (/方法判断|整合|综合|方法选择练习/.test(task)) addUnique(tasks, "方法判断");
+      if (!tasks.length && /相关|二项式检验/.test(task)) addUnique(tasks, "看书");
+
+      chapters.forEach(chapter => {
+        tasks.forEach(item => addUnique(links, chapterLinkId("stat", chapter, item)));
+      });
+      return links;
+    }
+
+    function dailySegmentEntries() {
+      return daily.flatMap(([, day, , , morningTask, afternoonTask, eveningTask]) => {
+        const dayId = `daily-${day}`;
+        return [
+          ["morning", morningTask],
+          ["afternoon", afternoonTask],
+          ["evening", eveningTask]
+        ].filter(([, task]) => !isNonTaskSegment(task)).map(([period, task]) => {
+          const stream = segmentStream(period, task);
+          return {
+            id: `${dayId}-${period}`,
+            dayId,
+            task,
+            links: chapterLinksForTask(task, stream)
+          };
+        });
+      });
+    }
+
+    function segmentLinks(segmentId) {
+      return dailySegmentEntries().find(entry => entry.id === segmentId)?.links || [];
+    }
+
+    function otherCheckedSegmentHasLink(state, linkId, exceptSegmentId) {
+      return dailySegmentEntries().some(entry => (
+        entry.id !== exceptSegmentId &&
+        Boolean(state[entry.id]) &&
+        entry.links.includes(linkId)
+      ));
+    }
+
+    function syncChaptersFromDailySegment(state, segmentId, checked) {
+      segmentLinks(segmentId).forEach(linkId => {
+        if (checked) {
+          state[linkId] = true;
+        } else if (!otherCheckedSegmentHasLink(state, linkId, segmentId)) {
+          state[linkId] = false;
+        }
+      });
+    }
+
+    function canChapterCompleteSegment(task) {
+      return !task.includes("英语1h");
+    }
+
+    function setDailySegmentFromChapter(state, entry, checked) {
+      if (checked) {
+        if (!canChapterCompleteSegment(entry.task)) return;
+        if (!entry.links.length || !entry.links.every(linkId => Boolean(state[linkId]))) return;
+        state[entry.id] = true;
+        if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = nowLocalDateTime();
+        if (allSegmentsDone(state, entry.dayId)) {
+          state[entry.dayId] = true;
+          state[`${entry.dayId}-actual`] = latestSegmentDate(state, entry.dayId);
+          state[`${entry.dayId}-status`] = "完成";
+        }
+        return;
+      }
+
+      state[entry.id] = false;
+      delete state[`${entry.id}-actualTime`];
+      state[entry.dayId] = false;
+      delete state[`${entry.dayId}-actual`];
+      delete state[`${entry.dayId}-status`];
+    }
+
+    function syncDailySegmentsFromChapter(state, chapterId, checked) {
+      dailySegmentEntries()
+        .filter(entry => entry.links.includes(chapterId))
+        .forEach(entry => setDailySegmentFromChapter(state, entry, checked));
+    }
+
+    function reconcileLinkedState(state) {
+      let changed = false;
+      dailySegmentEntries().forEach(entry => {
+        if (!state[entry.id]) return;
+        entry.links.forEach(linkId => {
+          if (!state[linkId]) {
+            state[linkId] = true;
+            changed = true;
+          }
+        });
+      });
+      dailySegmentEntries().forEach(entry => {
+        if (state[entry.id] || !entry.links.length || !canChapterCompleteSegment(entry.task)) return;
+        if (entry.links.every(linkId => Boolean(state[linkId]))) {
+          state[entry.id] = true;
+          if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = nowLocalDateTime();
+          changed = true;
+        }
+      });
+      return changed;
+    }
+
     function renderChapters(items, rootId, prefix, tasks, className = "") {
       const root = document.getElementById(rootId);
       root.innerHTML = items.map(([title, note], index) => {
@@ -827,6 +983,7 @@
           }
           const state = readState();
           state[input.dataset.id] = input.checked;
+          syncDailySegmentsFromChapter(state, input.dataset.id, input.checked);
           writeState(state);
           updateTaskStyles();
           updateProgress();
@@ -865,6 +1022,7 @@
           changed = true;
         }
       });
+      if (reconcileLinkedState(state)) changed = true;
       if (changed) writeState(state);
       return state;
     }
@@ -931,6 +1089,7 @@
       state[segmentId] = input.checked;
 
       if (!input.checked) {
+        syncChaptersFromDailySegment(state, segmentId, false);
         state[id] = false;
         delete state[`${id}-actual`];
         delete state[`${segmentId}-actualTime`];
@@ -972,6 +1131,7 @@
         state.streamShiftDays[stream] = Number(state.streamShiftDays[stream] || 0) + delta;
       }
       state[`${segmentId}-actualTime`] = actualTime;
+      syncChaptersFromDailySegment(state, segmentId, true);
 
       if (allSegmentsDone(state, id)) {
         state[id] = true;
