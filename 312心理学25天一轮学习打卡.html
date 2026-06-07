@@ -276,6 +276,12 @@
       min-width: 170px;
     }
 
+    .segment-item + .segment-item {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
     .segment-task label.task {
       grid-template-columns: 22px 1fr;
       padding: 0;
@@ -706,8 +712,8 @@
     }
 
     function segmentCell(dayId, day, period, label, task) {
-      const stream = segmentStream(period, task);
       if (isNonTaskSegment(task)) {
+        const stream = segmentStream(period, task);
         return `
           <td class="segment-task">
             <span class="period-label">${label}<span class="stream-badge">${streamNames[stream]}</span></span>
@@ -716,17 +722,35 @@
           </td>
         `;
       }
+      const tasks = splitTasks(task);
+      const controls = tasks.map((item, index) => {
+        const stream = segmentStream(period, item);
+        const id = segmentTaskId(dayId, period, index, tasks.length);
+        return `
+          <div class="segment-item">
+            <span class="period-label">${index === 0 ? label : ""}<span class="stream-badge">${streamNames[stream]}</span></span>
+            <span class="segment-plan">计划：${formatPlanDate(plannedDateForSegment(day, stream))}</span>
+            <label class="task">
+              <input type="checkbox" data-id="${id}" data-stream="${stream}">
+              <span>${item}</span>
+            </label>
+            <span class="segment-actual" data-segment-actual="${id}"></span>
+          </div>
+        `;
+      }).join("");
       return `
         <td class="segment-task">
-          <span class="period-label">${label}<span class="stream-badge">${streamNames[stream]}</span></span>
-          <span class="segment-plan">计划：${formatPlanDate(plannedDateForSegment(day, stream))}</span>
-          <label class="task">
-            <input type="checkbox" data-id="${dayId}-${period}" data-stream="${stream}">
-            <span>${task}</span>
-          </label>
-          <span class="segment-actual" data-segment-actual="${dayId}-${period}"></span>
+          ${controls}
         </td>
       `;
+    }
+
+    function splitTasks(task) {
+      return task.split("；").map(item => item.trim()).filter(Boolean);
+    }
+
+    function segmentTaskId(dayId, period, index, total) {
+      return total === 1 ? `${dayId}-${period}` : `${dayId}-${period}-${index}`;
     }
 
     function isNonTaskSegment(task) {
@@ -814,14 +838,18 @@
           ["morning", morningTask],
           ["afternoon", afternoonTask],
           ["evening", eveningTask]
-        ].filter(([, task]) => !isNonTaskSegment(task)).map(([period, task]) => {
-          const stream = segmentStream(period, task);
-          return {
-            id: `${dayId}-${period}`,
-            dayId,
-            task,
-            links: chapterLinksForTask(task, stream)
-          };
+        ].filter(([, task]) => !isNonTaskSegment(task)).flatMap(([period, task]) => {
+          const tasks = splitTasks(task);
+          return tasks.map((item, index) => {
+            const stream = segmentStream(period, item);
+            return {
+              id: segmentTaskId(dayId, period, index, tasks.length),
+              baseId: `${dayId}-${period}`,
+              dayId,
+              task: item,
+              links: chapterLinksForTask(item, stream)
+            };
+          });
         });
       });
     }
@@ -1013,6 +1041,26 @@
       }
       daily.forEach(([, day]) => {
         const id = `daily-${day}`;
+        const [, , , , morningTask, afternoonTask, eveningTask] = daily.find(([, entryDay]) => entryDay === day);
+        [
+          ["morning", morningTask],
+          ["afternoon", afternoonTask],
+          ["evening", eveningTask]
+        ].forEach(([period, task]) => {
+          if (isNonTaskSegment(task)) return;
+          const tasks = splitTasks(task);
+          if (tasks.length <= 1) return;
+          const oldId = `${id}-${period}`;
+          if (!state[oldId]) return;
+          tasks.forEach((_, index) => {
+            const newId = segmentTaskId(id, period, index, tasks.length);
+            state[newId] = true;
+            if (state[`${oldId}-actualTime`] && !state[`${newId}-actualTime`]) {
+              state[`${newId}-actualTime`] = state[`${oldId}-actualTime`];
+            }
+          });
+          changed = true;
+        });
         const segments = daySegments(id);
         const hasAnySegment = segments.some(segmentId => Object.prototype.hasOwnProperty.call(state, segmentId));
         if (state[id] && !hasAnySegment) {
@@ -1038,11 +1086,14 @@
         ["evening", eveningTask]
       ]
         .filter(([, task]) => !isNonTaskSegment(task))
-        .map(([period]) => `${dayId}-${period}`);
+        .flatMap(([period, task]) => {
+          const tasks = splitTasks(task);
+          return tasks.map((_, index) => segmentTaskId(dayId, period, index, tasks.length));
+        });
     }
 
     function isDailySegmentId(id) {
-      return /^daily-\d+-(morning|afternoon|evening)$/.test(id);
+      return /^daily-\d+-(morning|afternoon|evening)(-\d+)?$/.test(id);
     }
 
     function dayIdFromSegment(segmentId) {
