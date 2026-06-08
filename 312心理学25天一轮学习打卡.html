@@ -324,6 +324,20 @@
       font-size: 12px;
     }
 
+    .lock-toggle {
+      margin-top: 4px;
+      padding: 4px 7px;
+      font-size: 12px;
+    }
+
+    label.task.locked {
+      opacity: 0.72;
+    }
+
+    label.task.locked input {
+      cursor: not-allowed;
+    }
+
     .small {
       color: var(--muted);
       font-size: 13px;
@@ -729,15 +743,17 @@
       }
       const controls = entries.map((entry, index) => {
         const plannedDate = plannedDateForEntry(entry, state);
+        const locked = isLockedSegment(state, entry.id);
         return `
           <div class="segment-item">
             <span class="period-label">${index === 0 ? label : ""}<span class="stream-badge">${streamNames[entry.stream]}</span></span>
             <span class="segment-plan">计划：${formatPlanDate(plannedDate)}</span>
-            <label class="task">
-              <input type="checkbox" data-id="${entry.id}" data-row-id="${dayId}" data-stream="${entry.stream}">
+            <label class="task ${locked ? "locked" : ""}">
+              <input type="checkbox" data-id="${entry.id}" data-row-id="${dayId}" data-stream="${entry.stream}" ${locked ? "disabled" : ""}>
               <span>${entry.task}</span>
             </label>
             <span class="segment-actual" data-segment-actual="${entry.id}"></span>
+            ${locked ? `<button class="lock-toggle" type="button" data-unlock-segment="${entry.id}">解锁</button>` : ""}
           </div>
         `;
       }).join("");
@@ -1108,6 +1124,18 @@
       return buildEntrySchedule(state)[entry.id]?.plannedDate || baseDateForDay(entry.day);
     }
 
+    function completionDateForSegment(state, segmentId) {
+      const actualTime = state[`${segmentId}-actualTime`];
+      return actualTime ? dateFromDateTime(actualTime) : "";
+    }
+
+    function isLockedSegment(state, segmentId) {
+      if (!state[segmentId]) return false;
+      if (state.unlockedSegments?.[segmentId]) return false;
+      const actualDate = completionDateForSegment(state, segmentId);
+      return Boolean(actualDate) && daysBetween(todayISO(), actualDate) > 0;
+    }
+
     function rowDayIdForEntry(entry, state) {
       const scheduled = buildEntrySchedule(state)[entry.id];
       return scheduled ? `daily-${scheduled.day}` : entry.dayId;
@@ -1217,9 +1245,15 @@
       });
 
       document.addEventListener("click", event => {
-        const button = event.target.closest("[data-edit-date]");
-        if (button) {
-          editDailyActualDate(button.dataset.editDate);
+        const unlockButton = event.target.closest("[data-unlock-segment]");
+        if (unlockButton) {
+          unlockSegment(unlockButton.dataset.unlockSegment);
+          return;
+        }
+
+        const editButton = event.target.closest("[data-edit-date]");
+        if (editButton) {
+          editDailyActualDate(editButton.dataset.editDate);
         }
       });
 
@@ -1321,6 +1355,21 @@
       return `这个${name}任务与当前计划同一天完成，不调整其他任务。`;
     }
 
+    function unlockSegment(segmentId) {
+      const state = readState();
+      const actualTime = state[`${segmentId}-actualTime`];
+      const message = actualTime
+        ? `这个任务已按 ${formatDateTime(actualTime)} 锁定。\n\n解锁后可以取消勾选或重新登记完成时间，确定解锁吗？`
+        : "解锁后可以取消勾选或重新登记完成时间，确定解锁吗？";
+      if (!confirm(message)) return;
+
+      state.unlockedSegments = state.unlockedSegments || {};
+      state.unlockedSegments[segmentId] = true;
+      writeState(state);
+      renderDaily();
+      applyState();
+    }
+
     function handleDailySegment(input) {
       const segmentId = input.dataset.id;
       const stream = input.dataset.stream || "fixed";
@@ -1337,6 +1386,7 @@
       state[segmentId] = input.checked;
 
       if (!input.checked) {
+        if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
         syncChaptersFromDailySegment(state, segmentId, false);
         state[rowId] = false;
         delete state[`${rowId}-actual`];
@@ -1379,6 +1429,7 @@
         state.segmentPlanDates[entry.id] = actualDate;
       }
       state[`${segmentId}-actualTime`] = actualTime;
+      if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
       syncChaptersFromDailySegment(state, segmentId, true);
 
       const finalRowId = entry ? rowDayIdForEntry(entry, state) : rowId;
