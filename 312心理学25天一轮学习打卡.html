@@ -678,15 +678,8 @@
       return addDays(baseStartDate, day - 1);
     }
 
-    function streamShiftDays(stream) {
-      const state = readState();
-      const shifts = state.streamShiftDays || {};
-      return Number(shifts[stream] || 0);
-    }
-
     function plannedDateForSegment(day, stream) {
-      const shift = stream === "psych" || stream === "stat" ? streamShiftDays(stream) : 0;
-      return addDays(baseStartDate, day - 1 + shift);
+      return addDays(baseStartDate, day - 1);
     }
 
     function renderDaily() {
@@ -952,16 +945,11 @@
       return changed;
     }
 
-    function streamShiftDaysFromState(state, stream) {
-      const shifts = state.streamShiftDays || {};
-      return Number(shifts[stream] || 0);
-    }
-
     function plannedDateForEntry(entry, state) {
       const actualTime = state[`${entry.id}-actualTime`];
       if (state[entry.id] && actualTime) return dateFromDateTime(actualTime);
-      const shift = entry.stream === "psych" || entry.stream === "stat" ? streamShiftDaysFromState(state, entry.stream) : 0;
-      return addDays(baseStartDate, entry.day - 1 + shift);
+      const taskPlans = state.segmentPlanDates || {};
+      return taskPlans[entry.id] || addDays(baseStartDate, entry.day - 1);
     }
 
     function rowDayIdForEntry(entry, state) {
@@ -978,23 +966,15 @@
     function autoShiftOverduePlans(state) {
       const today = todayISO();
       let changed = false;
-      ["psych", "stat"].forEach(stream => {
-        const entries = dailySegmentEntries()
-          .filter(entry => entry.stream === stream && !state[entry.id])
-          .map(entry => ({
-            entry,
-            plannedDate: plannedDateForEntry(entry, state)
-          }))
-          .filter(item => daysBetween(today, item.plannedDate) > 0)
-          .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
-        if (!entries.length) return;
-
-        const overdueDays = daysBetween(today, entries[0].plannedDate);
-        state.streamShiftDays = state.streamShiftDays || {};
-        state.streamShiftDays[stream] = Number(state.streamShiftDays[stream] || 0) + overdueDays;
-        state[`${stream}-lastAutoShift`] = today;
-        changed = true;
-      });
+      dailySegmentEntries()
+        .filter(entry => (entry.stream === "psych" || entry.stream === "stat") && !state[entry.id])
+        .forEach(entry => {
+          const plannedDate = plannedDateForEntry(entry, state);
+          if (daysBetween(today, plannedDate) <= 0) return;
+          state.segmentPlanDates = state.segmentPlanDates || {};
+          state.segmentPlanDates[entry.id] = today;
+          changed = true;
+        });
       return changed;
     }
 
@@ -1062,6 +1042,7 @@
 
     function applyState() {
       const state = migrateState(readState());
+      renderDaily();
       document.querySelectorAll("input[type='checkbox'][data-id]").forEach(input => {
         input.checked = Boolean(state[input.dataset.id]);
       });
@@ -1102,10 +1083,13 @@
     function migrateState(state) {
       let changed = false;
       if (!state.streamShiftDays && state.planShiftDays) {
-        state.streamShiftDays = {
-          psych: Number(state.planShiftDays || 0),
-          stat: Number(state.planShiftDays || 0)
-        };
+        delete state.planShiftDays;
+        changed = true;
+      }
+      if (state.streamShiftDays) {
+        delete state.streamShiftDays;
+        delete state["psych-lastAutoShift"];
+        delete state["stat-lastAutoShift"];
         changed = true;
       }
       daily.forEach(([, day]) => {
@@ -1180,9 +1164,9 @@
       if (stream !== "psych" && stream !== "stat") {
         return "这个时段不参与普心/统计滚动，只记录完成时间。";
       }
-      if (delta < 0) return `${name}比当前计划提前${Math.abs(delta)}天完成。如果是忘了登记，确认后会按真实完成日期把${name}计划整体提前${Math.abs(delta)}天。`;
-      if (delta > 0) return `${name}比当前计划晚${delta}天完成。确认后，只让${name}后续任务整体顺延${delta}天。`;
-      return `${name}与当前计划同一天完成，不调整其他学科。`;
+      if (delta < 0) return `这个${name}任务比当前计划提前${Math.abs(delta)}天完成。如果是忘了登记，确认后会按真实完成日期校正这个任务。`;
+      if (delta > 0) return `这个${name}任务比当前计划晚${delta}天完成。确认后只校正这个任务，不影响同一天已经完成的其他任务。`;
+      return `这个${name}任务与当前计划同一天完成，不调整其他任务。`;
     }
 
     function handleDailySegment(input) {
@@ -1238,9 +1222,9 @@
         return;
       }
 
-      if ((stream === "psych" || stream === "stat") && delta !== 0) {
-        state.streamShiftDays = state.streamShiftDays || {};
-        state.streamShiftDays[stream] = Number(state.streamShiftDays[stream] || 0) + delta;
+      if ((stream === "psych" || stream === "stat") && delta !== 0 && entry) {
+        state.segmentPlanDates = state.segmentPlanDates || {};
+        state.segmentPlanDates[entry.id] = actualDate;
       }
       state[`${segmentId}-actualTime`] = actualTime;
       syncChaptersFromDailySegment(state, segmentId, true);
@@ -1296,14 +1280,11 @@
     }
 
     function updateRollingInfo() {
-      const psychShift = streamShiftDays("psych");
-      const statShift = streamShiftDays("stat");
-      const describe = (name, shift) => {
-        if (shift < 0) return `${name}提前${Math.abs(shift)}天`;
-        if (shift > 0) return `${name}顺延${shift}天`;
-        return `${name}未提前/顺延`;
-      };
-      const text = `当前滚动计划：${describe("普心", psychShift)}；${describe("统计", statShift)}。英语和周六休息保持固定。`;
+      const state = readState();
+      const movedCount = Object.keys(state.segmentPlanDates || {}).length;
+      const text = movedCount
+        ? `当前滚动计划：已有${movedCount}个未完成任务按实际进度单独调整。英语和周六休息保持固定。`
+        : "当前滚动计划：未完成任务会按单个 checkbox 自动顺延。英语和周六休息保持固定。";
       const node = document.getElementById("rollingInfo");
       if (node) node.textContent = text;
     }
@@ -1370,8 +1351,6 @@
       applyState();
     }
 
-    migrateState(readState());
-    renderDaily();
     renderChapters(psych, "psychChapters", "psych", ["听课", "看书", "做题"]);
     renderChapters(stat, "statChapters", "stat", ["看书", "做题", "方法判断"], "stat");
     bindState();
