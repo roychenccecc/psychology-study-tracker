@@ -483,6 +483,7 @@
         <li>统计优先下午；普心空出后，统计直接顶上。</li>
         <li>普心：晚上听课 -> 最近高强度日上午看书 -> 晚上做题。</li>
         <li>错题、订正、回书、复习不排入主计划，用碎片化时间处理。</li>
+        <li>逾期未完成会自动顺延；补登记时填真实完成时间，可把计划提前校正回来。</li>
         <li>最多25天完成一轮，能提前就提前；不做二轮背诵。</li>
       </ul>
     </section>
@@ -496,7 +497,7 @@
         </div>
         <div class="debt-item">
           <strong>自动滚动</strong>
-          <span class="small">每段确认系统时间；普心只滚动普心，统计只滚动统计。</span>
+          <span class="small">逾期自动推后；登记真实时间后，普心只滚动普心，统计只滚动统计。</span>
         </div>
         <div class="debt-item">
           <strong>可以修改</strong>
@@ -846,6 +847,8 @@
               id: segmentTaskId(dayId, period, index, tasks.length),
               baseId: `${dayId}-${period}`,
               dayId,
+              day,
+              stream,
               task: item,
               links: chapterLinksForTask(item, stream)
             };
@@ -925,6 +928,39 @@
           if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = nowLocalDateTime();
           changed = true;
         }
+      });
+      return changed;
+    }
+
+    function streamShiftDaysFromState(state, stream) {
+      const shifts = state.streamShiftDays || {};
+      return Number(shifts[stream] || 0);
+    }
+
+    function plannedDateForEntry(entry, state) {
+      const shift = entry.stream === "psych" || entry.stream === "stat" ? streamShiftDaysFromState(state, entry.stream) : 0;
+      return addDays(baseStartDate, entry.day - 1 + shift);
+    }
+
+    function autoShiftOverduePlans(state) {
+      const today = todayISO();
+      let changed = false;
+      ["psych", "stat"].forEach(stream => {
+        const entries = dailySegmentEntries()
+          .filter(entry => entry.stream === stream && !state[entry.id])
+          .map(entry => ({
+            entry,
+            plannedDate: plannedDateForEntry(entry, state)
+          }))
+          .filter(item => daysBetween(today, item.plannedDate) > 0)
+          .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
+        if (!entries.length) return;
+
+        const overdueDays = daysBetween(today, entries[0].plannedDate);
+        state.streamShiftDays = state.streamShiftDays || {};
+        state.streamShiftDays[stream] = Number(state.streamShiftDays[stream] || 0) + overdueDays;
+        state[`${stream}-lastAutoShift`] = today;
+        changed = true;
       });
       return changed;
     }
@@ -1071,6 +1107,7 @@
         }
       });
       if (reconcileLinkedState(state)) changed = true;
+      if (autoShiftOverduePlans(state)) changed = true;
       if (changed) writeState(state);
       return state;
     }
@@ -1120,7 +1157,7 @@
       if (stream !== "psych" && stream !== "stat") {
         return "这个时段不参与普心/统计滚动，只记录完成时间。";
       }
-      if (delta < 0) return `${name}比当前计划提前${Math.abs(delta)}天完成。确认后，只让${name}后续任务整体提前${Math.abs(delta)}天。`;
+      if (delta < 0) return `${name}比当前计划提前${Math.abs(delta)}天完成。如果是忘了登记，确认后会按真实完成日期把${name}计划整体提前${Math.abs(delta)}天。`;
       if (delta > 0) return `${name}比当前计划晚${delta}天完成。确认后，只让${name}后续任务整体顺延${delta}天。`;
       return `${name}与当前计划同一天完成，不调整其他学科。`;
     }
