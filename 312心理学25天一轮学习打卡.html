@@ -497,7 +497,7 @@
         </div>
         <div class="debt-item">
           <strong>自动滚动</strong>
-          <span class="small">逾期自动推后；登记真实时间后，普心只滚动普心，统计只滚动统计。</span>
+          <span class="small">逾期任务占用后续同科目格子，后面的任务依次后移。</span>
         </div>
         <div class="debt-item">
           <strong>可以修改</strong>
@@ -945,37 +945,85 @@
       return changed;
     }
 
+    function entrySort(a, b) {
+      return a.day - b.day || periodOrder(a.period) - periodOrder(b.period) || a.id.localeCompare(b.id);
+    }
+
+    function periodOrder(period) {
+      return { morning: 0, afternoon: 1, evening: 2 }[period] ?? 9;
+    }
+
+    function buildEntrySchedule(state) {
+      const schedule = {};
+      const entries = dailySegmentEntries();
+      const today = todayISO();
+
+      entries
+        .filter(entry => entry.stream === "fixed")
+        .forEach(entry => {
+          schedule[entry.id] = {
+            day: entry.day,
+            period: entry.period,
+            plannedDate: baseDateForDay(entry.day)
+          };
+        });
+
+      ["psych", "stat"].forEach(stream => {
+        const streamEntries = entries.filter(entry => entry.stream === stream).sort(entrySort);
+        let cursor = 0;
+
+        streamEntries.forEach((entry, index) => {
+          const actualTime = state[`${entry.id}-actualTime`];
+          if (state[entry.id] && actualTime) {
+            const actualDate = dateFromDateTime(actualTime);
+            const rowId = rowDayIdForDate(actualDate);
+            schedule[entry.id] = {
+              day: rowId ? Number(rowId.replace("daily-", "")) : entry.day,
+              period: entry.period,
+              plannedDate: actualDate
+            };
+            cursor = Math.max(cursor, index + 1);
+            return;
+          }
+
+          cursor = Math.max(cursor, index);
+          while (cursor < streamEntries.length && daysBetween(today, baseDateForDay(streamEntries[cursor].day)) > 0) {
+            cursor += 1;
+          }
+
+          const slot = streamEntries[Math.min(cursor, streamEntries.length - 1)] || entry;
+          schedule[entry.id] = {
+            day: slot.day,
+            period: slot.period,
+            plannedDate: baseDateForDay(slot.day)
+          };
+          cursor += 1;
+        });
+      });
+
+      return schedule;
+    }
+
     function plannedDateForEntry(entry, state) {
-      const actualTime = state[`${entry.id}-actualTime`];
-      if (state[entry.id] && actualTime) return dateFromDateTime(actualTime);
-      const taskPlans = state.segmentPlanDates || {};
-      return taskPlans[entry.id] || addDays(baseStartDate, entry.day - 1);
+      return buildEntrySchedule(state)[entry.id]?.plannedDate || baseDateForDay(entry.day);
     }
 
     function rowDayIdForEntry(entry, state) {
-      return rowDayIdForDate(plannedDateForEntry(entry, state)) || entry.dayId;
+      const scheduled = buildEntrySchedule(state)[entry.id];
+      return scheduled ? `daily-${scheduled.day}` : entry.dayId;
     }
 
     function visibleEntriesForCell(rowDay, period, state = readState()) {
-      const rowDate = baseDateForDay(rowDay);
+      const schedule = buildEntrySchedule(state);
       return dailySegmentEntries()
-        .filter(entry => entry.period === period && plannedDateForEntry(entry, state) === rowDate)
-        .sort((a, b) => a.day - b.day || a.id.localeCompare(b.id));
+        .filter(entry => schedule[entry.id]?.day === rowDay && schedule[entry.id]?.period === period)
+        .sort((a, b) => entrySort(a, b));
     }
 
     function autoShiftOverduePlans(state) {
-      const today = todayISO();
-      let changed = false;
-      dailySegmentEntries()
-        .filter(entry => (entry.stream === "psych" || entry.stream === "stat") && !state[entry.id])
-        .forEach(entry => {
-          const plannedDate = plannedDateForEntry(entry, state);
-          if (daysBetween(today, plannedDate) <= 0) return;
-          state.segmentPlanDates = state.segmentPlanDates || {};
-          state.segmentPlanDates[entry.id] = today;
-          changed = true;
-        });
-      return changed;
+      if (!state.segmentPlanDates) return false;
+      delete state.segmentPlanDates;
+      return true;
     }
 
     function renderChapters(items, rootId, prefix, tasks, className = "") {
@@ -1090,6 +1138,10 @@
         delete state.streamShiftDays;
         delete state["psych-lastAutoShift"];
         delete state["stat-lastAutoShift"];
+        changed = true;
+      }
+      if (state.segmentPlanDates) {
+        delete state.segmentPlanDates;
         changed = true;
       }
       daily.forEach(([, day]) => {
@@ -1281,10 +1333,7 @@
 
     function updateRollingInfo() {
       const state = readState();
-      const movedCount = Object.keys(state.segmentPlanDates || {}).length;
-      const text = movedCount
-        ? `当前滚动计划：已有${movedCount}个未完成任务按实际进度单独调整。英语和周六休息保持固定。`
-        : "当前滚动计划：未完成任务会按单个 checkbox 自动顺延。英语和周六休息保持固定。";
+      const text = "当前滚动计划：未完成任务会进入同科目队列，按后续可用格子依次后移。英语和周六休息保持固定。";
       const node = document.getElementById("rollingInfo");
       if (node) node.textContent = text;
     }
