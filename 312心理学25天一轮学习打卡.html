@@ -522,7 +522,7 @@
         <table>
           <thead>
             <tr>
-              <th>基准日期</th>
+              <th>日期</th>
               <th>Day</th>
               <th>日型</th>
               <th>上午</th>
@@ -713,7 +713,9 @@
     }
 
     function segmentCell(dayId, day, period, label, task) {
-      if (isNonTaskSegment(task)) {
+      const state = readState();
+      const entries = visibleEntriesForCell(day, period, state);
+      if (!entries.length && isNonTaskSegment(task)) {
         const stream = segmentStream(period, task);
         return `
           <td class="segment-task">
@@ -723,19 +725,26 @@
           </td>
         `;
       }
-      const tasks = splitTasks(task);
-      const controls = tasks.map((item, index) => {
-        const stream = segmentStream(period, item);
-        const id = segmentTaskId(dayId, period, index, tasks.length);
+      if (!entries.length) {
+        return `
+          <td class="segment-task">
+            <span class="period-label">${label}<span class="stream-badge">${streamNames.fixed}</span></span>
+            <span class="segment-plan">不计入闭环</span>
+            <span class="small">空档</span>
+          </td>
+        `;
+      }
+      const controls = entries.map((entry, index) => {
+        const plannedDate = plannedDateForEntry(entry, state);
         return `
           <div class="segment-item">
-            <span class="period-label">${index === 0 ? label : ""}<span class="stream-badge">${streamNames[stream]}</span></span>
-            <span class="segment-plan">计划：${formatPlanDate(plannedDateForSegment(day, stream))}</span>
+            <span class="period-label">${index === 0 ? label : ""}<span class="stream-badge">${streamNames[entry.stream]}</span></span>
+            <span class="segment-plan">计划：${formatPlanDate(plannedDate)}</span>
             <label class="task">
-              <input type="checkbox" data-id="${id}" data-stream="${stream}">
-              <span>${item}</span>
+              <input type="checkbox" data-id="${entry.id}" data-row-id="${dayId}" data-stream="${entry.stream}">
+              <span>${entry.task}</span>
             </label>
-            <span class="segment-actual" data-segment-actual="${id}"></span>
+            <span class="segment-actual" data-segment-actual="${entry.id}"></span>
           </div>
         `;
       }).join("");
@@ -752,6 +761,11 @@
 
     function segmentTaskId(dayId, period, index, total) {
       return total === 1 ? `${dayId}-${period}` : `${dayId}-${period}-${index}`;
+    }
+
+    function rowDayIdForDate(isoDate) {
+      const day = daysBetween(isoDate, baseStartDate) + 1;
+      return day >= 1 && day <= daily.length ? `daily-${day}` : null;
     }
 
     function isNonTaskSegment(task) {
@@ -848,6 +862,7 @@
               baseId: `${dayId}-${period}`,
               dayId,
               day,
+              period,
               stream,
               task: item,
               links: chapterLinksForTask(item, stream)
@@ -857,8 +872,12 @@
       });
     }
 
+    function segmentEntryById(segmentId) {
+      return dailySegmentEntries().find(entry => entry.id === segmentId) || null;
+    }
+
     function segmentLinks(segmentId) {
-      return dailySegmentEntries().find(entry => entry.id === segmentId)?.links || [];
+      return segmentEntryById(segmentId)?.links || [];
     }
 
     function otherCheckedSegmentHasLink(state, linkId, exceptSegmentId) {
@@ -884,24 +903,25 @@
     }
 
     function setDailySegmentFromChapter(state, entry, checked) {
+      const rowDayId = rowDayIdForEntry(entry, state);
       if (checked) {
         if (!canChapterCompleteSegment(entry.task)) return;
         if (!entry.links.length || !entry.links.every(linkId => Boolean(state[linkId]))) return;
         state[entry.id] = true;
         if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = nowLocalDateTime();
-        if (allSegmentsDone(state, entry.dayId)) {
-          state[entry.dayId] = true;
-          state[`${entry.dayId}-actual`] = latestSegmentDate(state, entry.dayId);
-          state[`${entry.dayId}-status`] = "完成";
+        if (allSegmentsDone(state, rowDayId)) {
+          state[rowDayId] = true;
+          state[`${rowDayId}-actual`] = latestSegmentDate(state, rowDayId);
+          state[`${rowDayId}-status`] = "完成";
         }
         return;
       }
 
       state[entry.id] = false;
       delete state[`${entry.id}-actualTime`];
-      state[entry.dayId] = false;
-      delete state[`${entry.dayId}-actual`];
-      delete state[`${entry.dayId}-status`];
+      state[rowDayId] = false;
+      delete state[`${rowDayId}-actual`];
+      delete state[`${rowDayId}-status`];
     }
 
     function syncDailySegmentsFromChapter(state, chapterId, checked) {
@@ -938,8 +958,21 @@
     }
 
     function plannedDateForEntry(entry, state) {
+      const actualTime = state[`${entry.id}-actualTime`];
+      if (state[entry.id] && actualTime) return dateFromDateTime(actualTime);
       const shift = entry.stream === "psych" || entry.stream === "stat" ? streamShiftDaysFromState(state, entry.stream) : 0;
       return addDays(baseStartDate, entry.day - 1 + shift);
+    }
+
+    function rowDayIdForEntry(entry, state) {
+      return rowDayIdForDate(plannedDateForEntry(entry, state)) || entry.dayId;
+    }
+
+    function visibleEntriesForCell(rowDay, period, state = readState()) {
+      const rowDate = baseDateForDay(rowDay);
+      return dailySegmentEntries()
+        .filter(entry => entry.period === period && plannedDateForEntry(entry, state) === rowDate)
+        .sort((a, b) => a.day - b.day || a.id.localeCompare(b.id));
     }
 
     function autoShiftOverduePlans(state) {
@@ -1007,7 +1040,7 @@
         const id = `daily-${day}`;
         const statusNode = document.querySelector(`[data-day-status="${id}"]`);
         if (statusNode) {
-          const segments = daySegments(id);
+          const segments = daySegments(id, state);
           const doneCount = segments.filter(segmentId => Boolean(state[segmentId])).length;
           statusNode.textContent = state[id] ? "已闭环" : `${doneCount}/${segments.length}`;
         }
@@ -1097,7 +1130,7 @@
           });
           changed = true;
         });
-        const segments = daySegments(id);
+        const segments = daySegments(id, state);
         const hasAnySegment = segments.some(segmentId => Object.prototype.hasOwnProperty.call(state, segmentId));
         if (state[id] && !hasAnySegment) {
           segments.forEach(segmentId => {
@@ -1112,21 +1145,11 @@
       return state;
     }
 
-    function daySegments(dayId) {
+    function daySegments(dayId, state = readState()) {
       const day = Number(dayId.replace("daily-", ""));
-      const entry = daily.find(([, entryDay]) => entryDay === day);
-      if (!entry) return [];
-      const [, , , , morningTask, afternoonTask, eveningTask] = entry;
-      return [
-        ["morning", morningTask],
-        ["afternoon", afternoonTask],
-        ["evening", eveningTask]
-      ]
-        .filter(([, task]) => !isNonTaskSegment(task))
-        .flatMap(([period, task]) => {
-          const tasks = splitTasks(task);
-          return tasks.map((_, index) => segmentTaskId(dayId, period, index, tasks.length));
-        });
+      if (!daily.some(([, entryDay]) => entryDay === day)) return [];
+      return ["morning", "afternoon", "evening"]
+        .flatMap(period => visibleEntriesForCell(day, period, state).map(entry => entry.id));
     }
 
     function isDailySegmentId(id) {
@@ -1138,7 +1161,7 @@
     }
 
     function allSegmentsDone(state, dayId) {
-      const segments = daySegments(dayId);
+      const segments = daySegments(dayId, state);
       return segments.length > 0 && segments.every(segmentId => Boolean(state[segmentId]));
     }
 
@@ -1164,10 +1187,11 @@
 
     function handleDailySegment(input) {
       const segmentId = input.dataset.id;
-      const id = dayIdFromSegment(segmentId);
       const stream = input.dataset.stream || "fixed";
       const state = readState();
-      if (!input.checked && state[id]) {
+      const entry = segmentEntryById(segmentId);
+      const rowId = input.dataset.rowId || (entry ? rowDayIdForEntry(entry, state) : dayIdFromSegment(segmentId));
+      if (!input.checked && state[rowId]) {
         if (!confirm("取消这个时段会取消这一天的闭环记录。计划日期不会自动回退，确定吗？")) {
           input.checked = true;
           return;
@@ -1178,16 +1202,16 @@
 
       if (!input.checked) {
         syncChaptersFromDailySegment(state, segmentId, false);
-        state[id] = false;
-        delete state[`${id}-actual`];
+        state[rowId] = false;
+        delete state[`${rowId}-actual`];
         delete state[`${segmentId}-actualTime`];
         writeState(state);
         applyState();
         return;
       }
 
-      const day = Number(id.replace("daily-", ""));
-      const plannedDate = plannedDateForSegment(day, stream);
+      const originalDay = entry?.day || Number(dayIdFromSegment(segmentId).replace("daily-", ""));
+      const plannedDate = entry ? plannedDateForEntry(entry, state) : plannedDateForSegment(originalDay, stream);
       const defaultTime = state[`${segmentId}-actualTime`] || nowLocalDateTime();
       const actualTime = prompt("确认这个时段的完成时间，可修改：", defaultTime);
       if (actualTime === null) {
@@ -1221,10 +1245,16 @@
       state[`${segmentId}-actualTime`] = actualTime;
       syncChaptersFromDailySegment(state, segmentId, true);
 
-      if (allSegmentsDone(state, id)) {
-        state[id] = true;
-        state[`${id}-actual`] = latestSegmentDate(state, id);
-        state[`${id}-status`] = "完成";
+      const finalRowId = entry ? rowDayIdForEntry(entry, state) : rowId;
+      if (finalRowId !== rowId) {
+        state[rowId] = false;
+        delete state[`${rowId}-actual`];
+        delete state[`${rowId}-status`];
+      }
+      if (allSegmentsDone(state, finalRowId)) {
+        state[finalRowId] = true;
+        state[`${finalRowId}-actual`] = latestSegmentDate(state, finalRowId);
+        state[`${finalRowId}-status`] = "完成";
       }
 
       writeState(state);
@@ -1233,7 +1263,7 @@
     }
 
     function latestSegmentDate(state, dayId) {
-      const times = daySegments(dayId)
+      const times = daySegments(dayId, state)
         .map(segmentId => state[`${segmentId}-actualTime`])
         .filter(Boolean)
         .sort();
