@@ -497,7 +497,7 @@
         </div>
         <div class="debt-item">
           <strong>自动滚动</strong>
-          <span class="small">逾期任务占用后续同科目格子，后面的任务依次后移。</span>
+          <span class="small">逾期任务占用后续同类格子；听课只进晚上，后面的任务依次后移。</span>
         </div>
         <div class="debt-item">
           <strong>可以修改</strong>
@@ -953,6 +953,13 @@
       return { morning: 0, afternoon: 1, evening: 2 }[period] ?? 9;
     }
 
+    function queueKeyForEntry(entry) {
+      if (entry.stream === "stat") return "stat";
+      if (entry.stream === "psych" && entry.task.includes("听第")) return "psychLecture";
+      if (entry.stream === "psych") return "psychStudy";
+      return entry.stream;
+    }
+
     function buildEntrySchedule(state) {
       const schedule = {};
       const entries = dailySegmentEntries();
@@ -968,8 +975,8 @@
           };
         });
 
-      ["psych", "stat"].forEach(stream => {
-        const streamEntries = entries.filter(entry => entry.stream === stream).sort(entrySort);
+      ["psychLecture", "psychStudy", "stat"].forEach(queueKey => {
+        const streamEntries = entries.filter(entry => queueKeyForEntry(entry) === queueKey).sort(entrySort);
         let cursor = 0;
 
         streamEntries.forEach((entry, index) => {
