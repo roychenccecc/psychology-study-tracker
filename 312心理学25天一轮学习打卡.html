@@ -497,7 +497,7 @@
         </div>
         <div class="debt-item">
           <strong>自动滚动</strong>
-          <span class="small">逾期任务占用后续同类格子；听课只进晚上，后面的任务依次后移。</span>
+          <span class="small">逾期任务占用后续同类格子；听课只进晚上，看书排在听课后。</span>
         </div>
         <div class="debt-item">
           <strong>可以修改</strong>
@@ -960,6 +960,129 @@
       return entry.stream;
     }
 
+    function entryChapter(entry) {
+      const match = entry.task.match(/第(\d+)章/);
+      return match ? Number(match[1]) : null;
+    }
+
+    function psychTaskType(entry) {
+      if (entry.task.includes("听第")) return "lecture";
+      if (entry.task.includes("看书")) return "read";
+      if (entry.task.includes("做题")) return "exercise";
+      return "other";
+    }
+
+    function slotPosition(slot) {
+      return (slot.day - 1) * 3 + periodOrder(slot.period);
+    }
+
+    function scheduledPosition(item) {
+      return (item.day - 1) * 3 + periodOrder(item.period);
+    }
+
+    function scheduleCompletedEntry(schedule, entry, state) {
+      const actualDate = dateFromDateTime(state[`${entry.id}-actualTime`]);
+      const rowId = rowDayIdForDate(actualDate);
+      const day = rowId ? Number(rowId.replace("daily-", "")) : entry.day;
+      schedule[entry.id] = {
+        day,
+        period: entry.period,
+        plannedDate: actualDate
+      };
+      return schedule[entry.id];
+    }
+
+    function scheduleSimpleQueue(schedule, entries, state, today) {
+      const streamEntries = entries.sort(entrySort);
+      let cursor = 0;
+
+      streamEntries.forEach((entry, index) => {
+        const actualTime = state[`${entry.id}-actualTime`];
+        if (state[entry.id] && actualTime) {
+          scheduleCompletedEntry(schedule, entry, state);
+          cursor = Math.max(cursor, index + 1);
+          return;
+        }
+
+        cursor = Math.max(cursor, index);
+        while (cursor < streamEntries.length && daysBetween(today, baseDateForDay(streamEntries[cursor].day)) > 0) {
+          cursor += 1;
+        }
+
+        const slot = streamEntries[Math.min(cursor, streamEntries.length - 1)] || entry;
+        schedule[entry.id] = {
+          day: slot.day,
+          period: slot.period,
+          plannedDate: baseDateForDay(slot.day)
+        };
+        cursor += 1;
+      });
+    }
+
+    function schedulePsychQueue(schedule, entries, state, today) {
+      const tasks = entries.filter(entry => entry.stream === "psych").sort(entrySort);
+      const lectureSlots = tasks.filter(entry => queueKeyForEntry(entry) === "psychLecture").sort(entrySort);
+      const studySlots = tasks.filter(entry => queueKeyForEntry(entry) === "psychStudy").sort(entrySort);
+      const chapterState = {};
+      let lectureCursor = 0;
+      let studyCursor = 0;
+
+      tasks.forEach(entry => {
+        const actualTime = state[`${entry.id}-actualTime`];
+        const chapter = entryChapter(entry);
+        const type = psychTaskType(entry);
+        if (chapter && !chapterState[chapter]) chapterState[chapter] = {};
+
+        if (state[entry.id] && actualTime) {
+          const completed = scheduleCompletedEntry(schedule, entry, state);
+          if (chapter && type !== "other") chapterState[chapter][type] = completed;
+          return;
+        }
+
+        if (type === "lecture") {
+          while (lectureCursor < lectureSlots.length && daysBetween(today, baseDateForDay(lectureSlots[lectureCursor].day)) > 0) {
+            lectureCursor += 1;
+          }
+          const slot = lectureSlots[Math.min(lectureCursor, lectureSlots.length - 1)] || entry;
+          schedule[entry.id] = {
+            day: slot.day,
+            period: slot.period,
+            plannedDate: baseDateForDay(slot.day)
+          };
+          if (chapter) chapterState[chapter].lecture = schedule[entry.id];
+          lectureCursor += 1;
+          return;
+        }
+
+        while (studyCursor < studySlots.length && daysBetween(today, baseDateForDay(studySlots[studyCursor].day)) > 0) {
+          studyCursor += 1;
+        }
+
+        if (chapter && type === "read" && chapterState[chapter]?.lecture) {
+          const lectureDate = chapterState[chapter].lecture.plannedDate;
+          while (studyCursor < studySlots.length && daysBetween(baseDateForDay(studySlots[studyCursor].day), lectureDate) <= 0) {
+            studyCursor += 1;
+          }
+        }
+
+        if (chapter && type === "exercise" && chapterState[chapter]?.read) {
+          const readPosition = scheduledPosition(chapterState[chapter].read);
+          while (studyCursor < studySlots.length && slotPosition(studySlots[studyCursor]) <= readPosition) {
+            studyCursor += 1;
+          }
+        }
+
+        const slot = studySlots[Math.min(studyCursor, studySlots.length - 1)] || entry;
+        schedule[entry.id] = {
+          day: slot.day,
+          period: slot.period,
+          plannedDate: baseDateForDay(slot.day)
+        };
+        if (chapter && type !== "other") chapterState[chapter][type] = schedule[entry.id];
+        studyCursor += 1;
+      });
+    }
+
     function buildEntrySchedule(state) {
       const schedule = {};
       const entries = dailySegmentEntries();
@@ -975,38 +1098,8 @@
           };
         });
 
-      ["psychLecture", "psychStudy", "stat"].forEach(queueKey => {
-        const streamEntries = entries.filter(entry => queueKeyForEntry(entry) === queueKey).sort(entrySort);
-        let cursor = 0;
-
-        streamEntries.forEach((entry, index) => {
-          const actualTime = state[`${entry.id}-actualTime`];
-          if (state[entry.id] && actualTime) {
-            const actualDate = dateFromDateTime(actualTime);
-            const rowId = rowDayIdForDate(actualDate);
-            schedule[entry.id] = {
-              day: rowId ? Number(rowId.replace("daily-", "")) : entry.day,
-              period: entry.period,
-              plannedDate: actualDate
-            };
-            cursor = Math.max(cursor, index + 1);
-            return;
-          }
-
-          cursor = Math.max(cursor, index);
-          while (cursor < streamEntries.length && daysBetween(today, baseDateForDay(streamEntries[cursor].day)) > 0) {
-            cursor += 1;
-          }
-
-          const slot = streamEntries[Math.min(cursor, streamEntries.length - 1)] || entry;
-          schedule[entry.id] = {
-            day: slot.day,
-            period: slot.period,
-            plannedDate: baseDateForDay(slot.day)
-          };
-          cursor += 1;
-        });
-      });
+      schedulePsychQueue(schedule, entries, state, today);
+      scheduleSimpleQueue(schedule, entries.filter(entry => entry.stream === "stat"), state, today);
 
       return schedule;
     }
