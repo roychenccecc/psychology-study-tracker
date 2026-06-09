@@ -494,7 +494,7 @@
         <li>高强度日：周日、周二、周三。</li>
         <li>高强度日晚上最后1小时固定给英语。</li>
         <li>周六晚上完全休息。</li>
-        <li>统计优先下午；普心空出后，统计直接顶上。</li>
+        <li>统计未完成时优先下午；统计完成后，下午可接普心看书/做题。</li>
         <li>普心：晚上听课 -> 最近高强度日上午看书 -> 晚上做题。</li>
         <li>错题、订正、回书、复习不排入主计划，用碎片化时间处理。</li>
         <li>逾期未完成会自动顺延；补登记时填真实完成时间，可把计划提前校正回来。</li>
@@ -1013,11 +1013,11 @@
         return period === "evening";
       }
       if (kind === "psychStudy") {
-        return ["morning", "evening"].includes(period) && (
-          task.includes("缓冲：统计顺延时使用") ||
+        if (period === "morning") return task.includes("缓冲：统计顺延时使用");
+        if (period === "afternoon") return true;
+        return task.includes("缓冲：统计顺延时使用") ||
           task.includes("不排固定任务") ||
-          task.includes("英语1h")
-        );
+          task.includes("英语1h");
       }
       return false;
     }
@@ -1044,7 +1044,7 @@
       return false;
     }
 
-    function overflowSlot(kind, overflowIndex, afterPosition, today, occupiedStudySlots, occupiedEveningSlots) {
+    function overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots) {
       const candidates = [];
       daily.forEach(([, day]) => {
         ["morning", "afternoon", "evening"].forEach(period => {
@@ -1056,10 +1056,33 @@
           candidates.push({ day, period });
         });
       });
+      return candidates.sort((a, b) => slotPosition(a) - slotPosition(b));
+    }
+
+    function overflowSlot(kind, overflowIndex, afterPosition, today, occupiedStudySlots, occupiedEveningSlots) {
+      const candidates = overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots);
       return candidates[overflowIndex] || null;
     }
 
     function queueSlot(slots, cursor, kind, today, occupiedStudySlots, occupiedEveningSlots) {
+      if (kind === "psychStudy") {
+        const afterPosition = cursor < slots.length
+          ? slotPosition(slots[cursor]) - 1
+          : slots.length ? slotPosition(slots[slots.length - 1]) : -1;
+        while (
+          cursor < slots.length &&
+          slotIsOccupied(kind, slots[cursor], occupiedStudySlots, occupiedEveningSlots)
+        ) {
+          cursor += 1;
+        }
+
+        const candidates = [
+          ...slots.slice(cursor).filter(slot => !slotIsOccupied(kind, slot, occupiedStudySlots, occupiedEveningSlots)),
+          ...overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots)
+        ].sort((a, b) => slotPosition(a) - slotPosition(b));
+        return candidates[0] || null;
+      }
+
       while (
         cursor < slots.length &&
         slotIsOccupied(kind, slots[cursor], occupiedStudySlots, occupiedEveningSlots)
@@ -1193,8 +1216,8 @@
           };
         });
 
-      schedulePsychQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots);
       scheduleSimpleQueue(schedule, entries.filter(entry => entry.stream === "stat"), state, today, occupiedStudySlots, occupiedEveningSlots);
+      schedulePsychQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots);
 
       return schedule;
     }
