@@ -1230,6 +1230,7 @@
             const position = (day - 1) * 3 + periodOrder(period);
             if (position <= originPosition) return;
             if (daysBetween(today, baseDateForDay(day)) > 0) return;
+            if (!canUseOverflowSlot("english", day, period)) return;
             const slot = { day, period };
             if (occupiedStudySlots.has(slotKey(slot))) return;
             if (occupiedEveningSlots.has(slotKey(slot)) && !occupiedLectureSlots.has(slotKey(slot))) return;
