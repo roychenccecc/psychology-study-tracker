@@ -1148,15 +1148,34 @@
       });
     }
 
+    function psychOrder(a, b) {
+      const chapterDiff = (entryChapter(a) || 99) - (entryChapter(b) || 99);
+      if (chapterDiff) return chapterDiff;
+      const typeRank = { lecture: 0, read: 1, exercise: 2, other: 3 };
+      const typeDiff = (typeRank[psychTaskType(a)] ?? 9) - (typeRank[psychTaskType(b)] ?? 9);
+      return typeDiff || entrySort(a, b);
+    }
+
+    function nextPsychSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots) {
+      const baseSlots = entries
+        .filter(entry => slotPosition(entry) > afterPosition)
+        .filter(entry => daysBetween(today, baseDateForDay(entry.day)) <= 0)
+        .filter(entry => !slotIsOccupied(kind, entry, occupiedStudySlots, occupiedEveningSlots))
+        .map(entry => ({ day: entry.day, period: entry.period }));
+      return [
+        ...baseSlots,
+        ...overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots)
+      ].sort((a, b) => slotPosition(a) - slotPosition(b))[0] || null;
+    }
+
     function schedulePsychQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots) {
-      const tasks = entries.filter(entry => entry.stream === "psych").sort(entrySort);
-      const lectureTasks = tasks.filter(entry => queueKeyForEntry(entry) === "psychLecture");
-      const studyTasks = tasks.filter(entry => queueKeyForEntry(entry) === "psychStudy");
+      const tasks = entries.filter(entry => entry.stream === "psych").sort(psychOrder);
+      const lectureTasks = tasks.filter(entry => queueKeyForEntry(entry) === "psychLecture").sort(entrySort);
+      const studyTasks = tasks.filter(entry => queueKeyForEntry(entry) === "psychStudy").sort(entrySort);
       const chapterState = {};
-      let lectureCursor = 0;
-      let studyCursor = 0;
+      let sequencePosition = -1;
 
-      lectureTasks.forEach(entry => {
+      tasks.forEach(entry => {
         const actualTime = state[`${entry.id}-actualTime`];
         const chapter = entryChapter(entry);
         const type = psychTaskType(entry);
@@ -1165,50 +1184,30 @@
         if (state[entry.id] && actualTime) {
           const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
           if (chapter && type !== "other") chapterState[chapter][type] = completed;
+          sequencePosition = Math.max(sequencePosition, scheduledPosition(completed));
           return;
         }
 
-        const originPosition = slotPosition({ day: entry.day, period: entry.period });
-        const slot = overflowCandidates("psychLecture", originPosition, today, occupiedStudySlots, occupiedEveningSlots)[0] || null;
-        scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
-        if (chapter) chapterState[chapter].lecture = schedule[entry.id];
-        lectureCursor += 1;
-      });
-
-      studyTasks.forEach(entry => {
-        const actualTime = state[`${entry.id}-actualTime`];
-        const chapter = entryChapter(entry);
-        const type = psychTaskType(entry);
-        if (chapter && !chapterState[chapter]) chapterState[chapter] = {};
-
-        if (state[entry.id] && actualTime) {
-          const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
-          if (chapter && type !== "other") chapterState[chapter][type] = completed;
-          return;
-        }
-
-        while (studyCursor < studyTasks.length && daysBetween(today, baseDateForDay(studyTasks[studyCursor].day)) > 0) {
-          studyCursor += 1;
-        }
-
+        let afterPosition = sequencePosition;
         if (chapter && type === "read" && chapterState[chapter]?.lecture) {
-          const lectureDate = chapterState[chapter].lecture.plannedDate;
-          while (studyCursor < studyTasks.length && daysBetween(baseDateForDay(studyTasks[studyCursor].day), lectureDate) <= 0) {
-            studyCursor += 1;
-          }
+          afterPosition = Math.max(afterPosition, scheduledPosition(chapterState[chapter].lecture));
         }
-
         if (chapter && type === "exercise" && chapterState[chapter]?.read) {
-          const readPosition = scheduledPosition(chapterState[chapter].read);
-          while (studyCursor < studyTasks.length && slotPosition(studyTasks[studyCursor]) <= readPosition) {
-            studyCursor += 1;
-          }
+          afterPosition = Math.max(afterPosition, scheduledPosition(chapterState[chapter].read));
         }
 
-        const slot = queueSlot(studyTasks, studyCursor, "psychStudy", today, occupiedStudySlots, occupiedEveningSlots);
+        const kind = queueKeyForEntry(entry);
+        const slot = nextPsychSlot(
+          kind,
+          afterPosition,
+          kind === "psychLecture" ? lectureTasks : studyTasks,
+          today,
+          occupiedStudySlots,
+          occupiedEveningSlots
+        );
         scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
         if (chapter && type !== "other") chapterState[chapter][type] = schedule[entry.id];
-        studyCursor += 1;
+        if (slot) sequencePosition = Math.max(sequencePosition, slotPosition(slot));
       });
     }
 
