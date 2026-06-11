@@ -1137,24 +1137,19 @@
 
     function scheduleSimpleQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots) {
       const streamEntries = entries.sort(entrySort);
-      let cursor = 0;
+      let sequencePosition = -1;
 
-      streamEntries.forEach((entry, index) => {
+      streamEntries.forEach(entry => {
         const actualTime = state[`${entry.id}-actualTime`];
         if (state[entry.id] && actualTime) {
-          scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots);
-          cursor = Math.max(cursor, index + 1);
+          const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots);
+          sequencePosition = Math.max(sequencePosition, scheduledPosition(completed));
           return;
         }
 
-        cursor = Math.max(cursor, index);
-        while (cursor < streamEntries.length && daysBetween(today, baseDateForDay(streamEntries[cursor].day)) > 0) {
-          cursor += 1;
-        }
-
-        const slot = queueSlot(streamEntries, cursor, "stat", today, occupiedStudySlots, occupiedEveningSlots);
+        const slot = nextQueueSlot("stat", sequencePosition, streamEntries, today, occupiedStudySlots, occupiedEveningSlots);
         scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots);
-        cursor += 1;
+        if (slot) sequencePosition = Math.max(sequencePosition, slotPosition(slot));
       });
     }
 
@@ -1166,7 +1161,7 @@
       return typeDiff || entrySort(a, b);
     }
 
-    function nextPsychSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots) {
+    function nextQueueSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots) {
       const baseSlots = entries
         .filter(entry => slotPosition(entry) > afterPosition)
         .filter(entry => daysBetween(today, baseDateForDay(entry.day)) <= 0)
@@ -1207,7 +1202,7 @@
         }
 
         const kind = queueKeyForEntry(entry);
-        const slot = nextPsychSlot(
+        const slot = nextQueueSlot(
           kind,
           afterPosition,
           kind === "psychLecture" ? lectureTasks : studyTasks,
