@@ -683,6 +683,15 @@
       return value.slice(0, 10);
     }
 
+    function periodFromDateTime(value) {
+      const time = value.split("T")[1] || "";
+      const hour = Number(time.slice(0, 2));
+      if (Number.isNaN(hour)) return "evening";
+      if (hour < 12) return "morning";
+      if (hour < 18) return "afternoon";
+      return "evening";
+    }
+
     function formatDateTime(value) {
       if (!value) return "";
       const [date, time] = value.split("T");
@@ -1111,12 +1120,13 @@
     }
 
     function scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots = new Set()) {
-      const actualDate = dateFromDateTime(state[`${entry.id}-actualTime`]);
+      const actualTime = state[`${entry.id}-actualTime`];
+      const actualDate = dateFromDateTime(actualTime);
       const rowId = rowDayIdForDate(actualDate);
       const day = rowId ? Number(rowId.replace("daily-", "")) : entry.day;
       schedule[entry.id] = {
         day,
-        period: entry.period,
+        period: periodFromDateTime(actualTime),
         plannedDate: actualDate
       };
       if (entryOccupiesStudySlot(entry)) occupiedStudySlots.add(slotKey(schedule[entry.id]));
