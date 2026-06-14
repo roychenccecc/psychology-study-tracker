@@ -385,6 +385,15 @@
       gap: 6px;
     }
 
+    .chapter-dates {
+      display: grid;
+      gap: 2px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .stat .chapter-tasks {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
@@ -1306,13 +1315,54 @@
           <label class="mini"><input type="checkbox" data-id="${prefix}-${index}-${task}">${task}</label>
         `).join("");
         return `
-          <div class="chapter ${className}">
+          <div class="chapter ${className}" data-chapter-card="${prefix}-${index}">
             <div class="chapter-title">${title}</div>
             <div class="chapter-tasks">${checks}</div>
-            <div class="small" style="margin-top:8px;">${note}</div>
+            <div class="chapter-dates">
+              <span>原定：${note}</span>
+              <span data-chapter-actual="${prefix}-${index}">实际：未完成</span>
+            </div>
           </div>
         `;
       }).join("");
+    }
+
+    function latestISODate(dates) {
+      return dates.slice().sort().at(-1) || "";
+    }
+
+    function chapterActualText(chapterId, state) {
+      const card = document.querySelector(`[data-chapter-card="${chapterId}"]`);
+      if (!card) return "实际：未完成";
+
+      const linkIds = Array.from(card.querySelectorAll("input[data-id]"))
+        .map(input => input.dataset.id);
+      const plannedLinks = linkIds
+        .map(linkId => ({
+          linkId,
+          entries: dailySegmentEntries().filter(entry => entry.links.includes(linkId))
+        }))
+        .filter(item => item.entries.length);
+
+      if (!plannedLinks.length) return "实际：无每日记录";
+
+      const completedDates = plannedLinks.map(item => {
+        const dates = item.entries
+          .filter(entry => Boolean(state[entry.id]) && state[`${entry.id}-actualTime`])
+          .map(entry => dateFromDateTime(state[`${entry.id}-actualTime`]));
+        return latestISODate(dates);
+      }).filter(Boolean);
+
+      if (!completedDates.length) return "实际：未完成";
+      const latestDate = latestISODate(completedDates);
+      if (completedDates.length === plannedLinks.length) return `实际：${latestDate}`;
+      return `实际：部分至 ${latestDate}（${completedDates.length}/${plannedLinks.length}）`;
+    }
+
+    function updateChapterDates(state) {
+      document.querySelectorAll("[data-chapter-actual]").forEach(node => {
+        node.textContent = chapterActualText(node.dataset.chapterActual, state);
+      });
     }
 
     function readState() {
@@ -1358,6 +1408,7 @@
           cell?.classList.remove("has-actual");
         }
       });
+      updateChapterDates(state);
       updateRollingInfo();
     }
 
