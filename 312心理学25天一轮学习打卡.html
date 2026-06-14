@@ -1340,6 +1340,32 @@
       return startDate === endDate ? startDate : `${startDate} 至 ${endDate}`;
     }
 
+    function completedLinkDateRange(item, state) {
+      const dates = item.entries
+        .filter(entry => Boolean(state[entry.id]) && state[`${entry.id}-actualTime`])
+        .map(entry => dateFromDateTime(state[`${entry.id}-actualTime`]));
+      return dates.length ? {
+        linkId: item.linkId,
+        startDate: earliestISODate(dates),
+        endDate: latestISODate(dates)
+      } : null;
+    }
+
+    function statChapterActualText(plannedLinks, state) {
+      const completedLinks = plannedLinks
+        .map(item => completedLinkDateRange(item, state))
+        .filter(Boolean);
+      if (!completedLinks.length) return "实际：未完成";
+
+      const startDate = earliestISODate(completedLinks.map(item => item.startDate));
+      const exerciseLink = plannedLinks.find(item => item.linkId.endsWith("-做题"));
+      const exerciseRange = exerciseLink ? completedLinkDateRange(exerciseLink, state) : null;
+      if (exerciseRange) return `实际：${dateRangeText(startDate, exerciseRange.endDate)}`;
+
+      const latestDate = latestISODate(completedLinks.map(item => item.endDate));
+      return `实际：进行中 ${dateRangeText(startDate, latestDate)}（未做题）`;
+    }
+
     function chapterActualText(chapterId, state) {
       const card = document.querySelector(`[data-chapter-card="${chapterId}"]`);
       if (!card) return "实际：未完成";
@@ -1355,15 +1381,10 @@
 
       if (!plannedLinks.length) return "实际：无每日记录";
 
+      if (chapterId.startsWith("stat-")) return statChapterActualText(plannedLinks, state);
+
       const completedLinks = plannedLinks.map(item => {
-        const dates = item.entries
-          .filter(entry => Boolean(state[entry.id]) && state[`${entry.id}-actualTime`])
-          .map(entry => dateFromDateTime(state[`${entry.id}-actualTime`]));
-        return dates.length ? {
-          linkId: item.linkId,
-          startDate: earliestISODate(dates),
-          endDate: latestISODate(dates)
-        } : null;
+        return completedLinkDateRange(item, state);
       }).filter(Boolean);
 
       if (!completedLinks.length) return "实际：未完成";
