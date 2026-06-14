@@ -1331,6 +1331,15 @@
       return dates.slice().sort().at(-1) || "";
     }
 
+    function earliestISODate(dates) {
+      return dates.slice().sort()[0] || "";
+    }
+
+    function dateRangeText(startDate, endDate) {
+      if (!startDate) return "";
+      return startDate === endDate ? startDate : `${startDate} 至 ${endDate}`;
+    }
+
     function chapterActualText(chapterId, state) {
       const card = document.querySelector(`[data-chapter-card="${chapterId}"]`);
       if (!card) return "实际：未完成";
@@ -1346,17 +1355,23 @@
 
       if (!plannedLinks.length) return "实际：无每日记录";
 
-      const completedDates = plannedLinks.map(item => {
+      const completedLinks = plannedLinks.map(item => {
         const dates = item.entries
           .filter(entry => Boolean(state[entry.id]) && state[`${entry.id}-actualTime`])
           .map(entry => dateFromDateTime(state[`${entry.id}-actualTime`]));
-        return latestISODate(dates);
+        return dates.length ? {
+          linkId: item.linkId,
+          startDate: earliestISODate(dates),
+          endDate: latestISODate(dates)
+        } : null;
       }).filter(Boolean);
 
-      if (!completedDates.length) return "实际：未完成";
-      const latestDate = latestISODate(completedDates);
-      if (completedDates.length === plannedLinks.length) return `实际：${latestDate}`;
-      return `实际：部分至 ${latestDate}（${completedDates.length}/${plannedLinks.length}）`;
+      if (!completedLinks.length) return "实际：未完成";
+      const startDate = earliestISODate(completedLinks.map(item => item.startDate));
+      const endDate = latestISODate(completedLinks.map(item => item.endDate));
+      const range = dateRangeText(startDate, endDate);
+      if (completedLinks.length === plannedLinks.length) return `实际：${range}`;
+      return `实际：进行中 ${range}（${completedLinks.length}/${plannedLinks.length}）`;
     }
 
     function updateChapterDates(state) {
