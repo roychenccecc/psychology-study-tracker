@@ -1065,7 +1065,25 @@
       return false;
     }
 
-    function overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots) {
+    function streamDayChapterKey(entry, slot) {
+      return `${entry.stream}-${slot.day}`;
+    }
+
+    function slotConflictsWithDayChapter(entry, slot, dayChapters) {
+      const chapter = entryChapter(entry);
+      if (!chapter) return false;
+      const existingChapter = dayChapters.get(streamDayChapterKey(entry, slot));
+      return Boolean(existingChapter && existingChapter !== chapter);
+    }
+
+    function markDayChapter(entry, slot, dayChapters) {
+      const chapter = entryChapter(entry);
+      if (!chapter) return;
+      const key = streamDayChapterKey(entry, slot);
+      if (!dayChapters.has(key)) dayChapters.set(key, chapter);
+    }
+
+    function overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots, entry = null, dayChapters = new Map()) {
       const candidates = [];
       daily.forEach(([, day]) => {
         ["morning", "afternoon", "evening"].forEach(period => {
@@ -1073,6 +1091,7 @@
           if (position <= afterPosition) return;
           if (daysBetween(today, baseDateForDay(day)) > 0) return;
           if (!canUseOverflowSlot(kind, day, period)) return;
+          if (entry && slotConflictsWithDayChapter(entry, { day, period }, dayChapters)) return;
           if (slotIsOccupied(kind, { day, period }, occupiedStudySlots, occupiedEveningSlots)) return;
           candidates.push({ day, period });
         });
@@ -1115,7 +1134,7 @@
       return overflowSlot(kind, cursor - slots.length, afterPosition, today, occupiedStudySlots, occupiedEveningSlots);
     }
 
-    function scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots = new Set()) {
+    function scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots = new Set(), dayChapters = new Map()) {
       if (!slot) return false;
       schedule[entry.id] = {
         day: slot.day,
@@ -1125,10 +1144,11 @@
       if (entryOccupiesStudySlot(entry)) occupiedStudySlots.add(slotKey(slot));
       if (entry.stream !== "fixed" && slot.period === "evening") occupiedEveningSlots.add(slotKey(slot));
       if (queueKeyForEntry(entry) === "psychLecture" && slot.period === "evening") occupiedLectureSlots.add(slotKey(slot));
+      markDayChapter(entry, slot, dayChapters);
       return true;
     }
 
-    function scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots = new Set()) {
+    function scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots = new Set(), dayChapters = new Map()) {
       const actualTime = state[`${entry.id}-actualTime`];
       const actualDate = dateFromDateTime(actualTime);
       const rowId = rowDayIdForDate(actualDate);
@@ -1141,23 +1161,24 @@
       if (entryOccupiesStudySlot(entry)) occupiedStudySlots.add(slotKey(schedule[entry.id]));
       if (entry.stream !== "fixed" && schedule[entry.id].period === "evening") occupiedEveningSlots.add(slotKey(schedule[entry.id]));
       if (queueKeyForEntry(entry) === "psychLecture" && schedule[entry.id].period === "evening") occupiedLectureSlots.add(slotKey(schedule[entry.id]));
+      markDayChapter(entry, schedule[entry.id], dayChapters);
       return schedule[entry.id];
     }
 
-    function scheduleSimpleQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots) {
+    function scheduleSimpleQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, dayChapters) {
       const streamEntries = entries.sort(entrySort);
       let sequencePosition = -1;
 
       streamEntries.forEach(entry => {
         const actualTime = state[`${entry.id}-actualTime`];
         if (state[entry.id] && actualTime) {
-          const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots);
+          const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, new Set(), dayChapters);
           sequencePosition = Math.max(sequencePosition, scheduledPosition(completed));
           return;
         }
 
-        const slot = nextQueueSlot("stat", sequencePosition, streamEntries, today, occupiedStudySlots, occupiedEveningSlots);
-        scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots);
+        const slot = nextQueueSlot("stat", sequencePosition, streamEntries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters);
+        scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, new Set(), dayChapters);
         if (slot) sequencePosition = Math.max(sequencePosition, slotPosition(slot));
       });
     }
@@ -1170,19 +1191,20 @@
       return typeDiff || entrySort(a, b);
     }
 
-    function nextQueueSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots) {
+    function nextQueueSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters) {
       const baseSlots = entries
         .filter(entry => slotPosition(entry) > afterPosition)
         .filter(entry => daysBetween(today, baseDateForDay(entry.day)) <= 0)
-        .filter(entry => !slotIsOccupied(kind, entry, occupiedStudySlots, occupiedEveningSlots))
-        .map(entry => ({ day: entry.day, period: entry.period }));
+        .filter(candidate => !slotConflictsWithDayChapter(entry, candidate, dayChapters))
+        .filter(candidate => !slotIsOccupied(kind, candidate, occupiedStudySlots, occupiedEveningSlots))
+        .map(candidate => ({ day: candidate.day, period: candidate.period }));
       return [
         ...baseSlots,
-        ...overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots)
+        ...overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters)
       ].sort((a, b) => slotPosition(a) - slotPosition(b))[0] || null;
     }
 
-    function schedulePsychQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots) {
+    function schedulePsychQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters) {
       const tasks = entries.filter(entry => entry.stream === "psych").sort(psychOrder);
       const lectureTasks = tasks.filter(entry => queueKeyForEntry(entry) === "psychLecture").sort(entrySort);
       const studyTasks = tasks.filter(entry => queueKeyForEntry(entry) === "psychStudy").sort(entrySort);
@@ -1196,7 +1218,7 @@
         if (chapter && !chapterState[chapter]) chapterState[chapter] = {};
 
         if (state[entry.id] && actualTime) {
-          const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
+          const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters);
           if (chapter && type !== "other") chapterState[chapter][type] = completed;
           sequencePosition = Math.max(sequencePosition, scheduledPosition(completed));
           return;
@@ -1217,9 +1239,11 @@
           kind === "psychLecture" ? lectureTasks : studyTasks,
           today,
           occupiedStudySlots,
-          occupiedEveningSlots
+          occupiedEveningSlots,
+          entry,
+          dayChapters
         );
-        scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
+        scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters);
         if (chapter && type !== "other") chapterState[chapter][type] = schedule[entry.id];
         if (slot) sequencePosition = Math.max(sequencePosition, slotPosition(slot));
       });
@@ -1266,9 +1290,10 @@
       const occupiedStudySlots = new Set();
       const occupiedEveningSlots = new Set();
       const occupiedLectureSlots = new Set();
+      const dayChapters = new Map();
 
-      scheduleSimpleQueue(schedule, entries.filter(entry => entry.stream === "stat"), state, today, occupiedStudySlots, occupiedEveningSlots);
-      schedulePsychQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
+      scheduleSimpleQueue(schedule, entries.filter(entry => entry.stream === "stat"), state, today, occupiedStudySlots, occupiedEveningSlots, dayChapters);
+      schedulePsychQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters);
       scheduleEnglishQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
 
       return schedule;
