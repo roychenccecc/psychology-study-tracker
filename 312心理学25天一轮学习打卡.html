@@ -503,7 +503,7 @@
         <li>高强度日：周日、周二、周三。</li>
         <li>英语每周至少2次；听课晚可并存，遇到看书/做题可让位。</li>
         <li>周六晚上改为可顺延安排，来不及时优先承接普心晚间任务。</li>
-        <li>统计未完成时优先下午；统计完成后，下午可接普心看书/做题。</li>
+        <li>统计优先下午；同章可上午看书下午做题，章与章之间留一天缓冲。</li>
         <li>普心：晚上听课 -> 最近高强度日上午看书 -> 晚上做题。</li>
         <li>错题、订正、回书、复习不排入主计划，用碎片化时间处理。</li>
         <li>专业课逾期未完成会自动顺延；英语错过则不再顺延。</li>
@@ -1018,6 +1018,12 @@
       return "other";
     }
 
+    function statTaskType(entry) {
+      if (/做题|练习|综合|方法判断|整合/.test(entry.task)) return "exercise";
+      if (/看书|例题|相关|二项式检验/.test(entry.task)) return "read";
+      return "other";
+    }
+
     function slotPosition(slot) {
       return (slot.day - 1) * 3 + periodOrder(slot.period);
     }
@@ -1207,18 +1213,40 @@
     function scheduleSimpleQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, dayChapters) {
       const streamEntries = entries.sort(entrySort);
       let sequencePosition = -1;
+      let lastStatChapter = null;
+      let lastStatExerciseSlot = null;
 
       streamEntries.forEach(entry => {
+        const chapter = entryChapter(entry);
+        const type = statTaskType(entry);
         const actualTime = state[`${entry.id}-actualTime`];
         if (state[entry.id] && actualTime) {
           const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, new Set(), dayChapters);
           sequencePosition = Math.max(sequencePosition, scheduledPosition(completed));
+          if (chapter && type === "exercise") {
+            lastStatChapter = chapter;
+            lastStatExerciseSlot = completed;
+          }
           return;
         }
 
-        const slot = nextQueueSlot("stat", sequencePosition, streamEntries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters);
+        let afterPosition = sequencePosition;
+        if (
+          chapter &&
+          lastStatChapter &&
+          chapter !== lastStatChapter &&
+          lastStatExerciseSlot
+        ) {
+          afterPosition = Math.max(afterPosition, endOfDayPosition(lastStatExerciseSlot.day + 1));
+        }
+
+        const slot = nextQueueSlot("stat", afterPosition, streamEntries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters);
         scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, new Set(), dayChapters);
         if (slot) sequencePosition = Math.max(sequencePosition, slotPosition(slot));
+        if (slot && chapter && type === "exercise") {
+          lastStatChapter = chapter;
+          lastStatExerciseSlot = slot;
+        }
       });
     }
 
