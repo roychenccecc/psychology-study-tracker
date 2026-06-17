@@ -1083,18 +1083,39 @@
       return `${entry.stream}-${slot.day}`;
     }
 
+    function canSharePsychDay(current, existing) {
+      if (current.chapter === existing.chapter) return true;
+      const currentIsNextLecture = current.type === "lecture" &&
+        existing.type === "exercise" &&
+        current.chapter === existing.chapter + 1;
+      const existingIsNextLecture = existing.type === "lecture" &&
+        current.type === "exercise" &&
+        existing.chapter === current.chapter + 1;
+      return currentIsNextLecture || existingIsNextLecture;
+    }
+
     function slotConflictsWithDayChapter(entry, slot, dayChapters) {
       const chapter = entryChapter(entry);
       if (!chapter) return false;
-      const existingChapter = dayChapters.get(streamDayChapterKey(entry, slot));
-      return Boolean(existingChapter && existingChapter !== chapter);
+      const existingItems = dayChapters.get(streamDayChapterKey(entry, slot)) || [];
+      if (!existingItems.length) return false;
+      if (entry.stream === "psych") {
+        const current = { chapter, type: psychTaskType(entry) };
+        return existingItems.some(existing => !canSharePsychDay(current, existing));
+      }
+      return existingItems.some(existing => existing.chapter !== chapter);
     }
 
     function markDayChapter(entry, slot, dayChapters) {
       const chapter = entryChapter(entry);
       if (!chapter) return;
       const key = streamDayChapterKey(entry, slot);
-      if (!dayChapters.has(key)) dayChapters.set(key, chapter);
+      const items = dayChapters.get(key) || [];
+      const type = entry.stream === "psych" ? psychTaskType(entry) : "task";
+      if (!items.some(item => item.chapter === chapter && item.type === type)) {
+        items.push({ chapter, type });
+      }
+      dayChapters.set(key, items);
     }
 
     function overflowCandidates(kind, afterPosition, today, occupiedStudySlots, occupiedEveningSlots, entry = null, dayChapters = new Map()) {
