@@ -463,7 +463,7 @@
     <div class="wrap top">
       <div>
         <h1>312心理学25天一轮学习打卡</h1>
-        <p class="subtitle">2026-06-05 启动夜；2026-06-06 起执行，最多25天，能提前就提前</p>
+        <p class="subtitle">2026-06-05 启动夜；2026-06-06 起执行，25天主计划，必要时按记忆间隔顺延</p>
       </div>
       <div class="actions">
         <button id="todayBtn" class="primary" type="button">定位今天</button>
@@ -507,7 +507,7 @@
         <li>普心：晚上听课 -> 最近高强度日上午看书 -> 晚上做题。</li>
         <li>错题、订正、回书、复习不排入主计划，用碎片化时间处理。</li>
         <li>逾期未完成会自动顺延；补登记时填真实完成时间，可把计划提前校正回来。</li>
-        <li>最多25天完成一轮，能提前就提前；不做二轮背诵。</li>
+        <li>25天是主计划；普心按间隔记忆顺延，不做二轮背诵。</li>
       </ul>
     </section>
 
@@ -540,7 +540,7 @@
     </section>
 
     <section class="card">
-      <h2>最多25天每日打卡</h2>
+      <h2>滚动每日打卡</h2>
       <div class="table-wrap">
         <table>
           <thead>
@@ -613,7 +613,17 @@
       ["6/27 周六", 22, "rest", "周六晚休", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "周六晚休"],
       ["6/28 周日", 23, "intense", "高强度", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "英语1h"],
       ["6/29 周一", 24, "normal", "普通日", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "不排固定任务"],
-      ["6/30 周二", 25, "intense", "高强度", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "英语1h"]
+      ["6/30 周二", 25, "intense", "高强度", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "英语1h"],
+      ["7/1 周三", 26, "intense", "高强度", "缓冲：顺延时使用", "缓冲：顺延时使用", "英语1h"],
+      ["7/2 周四", 27, "normal", "普通日", "上午不排固定任务", "缓冲：顺延时使用", "不排固定任务"],
+      ["7/3 周五", 28, "normal", "普通日", "缓冲：顺延时使用", "缓冲：顺延时使用", "不排固定任务"],
+      ["7/4 周六", 29, "rest", "周六晚休", "缓冲：顺延时使用", "缓冲：顺延时使用", "周六晚休"],
+      ["7/5 周日", 30, "intense", "高强度", "缓冲：顺延时使用", "缓冲：顺延时使用", "英语1h"],
+      ["7/6 周一", 31, "normal", "普通日", "缓冲：顺延时使用", "缓冲：顺延时使用", "不排固定任务"],
+      ["7/7 周二", 32, "intense", "高强度", "缓冲：顺延时使用", "缓冲：顺延时使用", "英语1h"],
+      ["7/8 周三", 33, "intense", "高强度", "缓冲：顺延时使用", "缓冲：顺延时使用", "英语1h"],
+      ["7/9 周四", 34, "normal", "普通日", "上午不排固定任务", "缓冲：顺延时使用", "不排固定任务"],
+      ["7/10 周五", 35, "normal", "普通日", "缓冲：顺延时使用", "缓冲：顺延时使用", "不排固定任务"]
     ];
 
     const psych = [
@@ -1032,13 +1042,13 @@
       if (task.includes("周六晚休") || task.includes("上午不排固定任务")) return false;
       if (kind === "english") return period === "evening";
       if (kind === "stat") {
-        return ["morning", "afternoon"].includes(period) && task.includes("缓冲：统计顺延时使用");
+        return ["morning", "afternoon"].includes(period) && task.includes("缓冲：");
       }
       if (kind === "psychLecture") {
         return period === "evening";
       }
       if (kind === "psychStudy") {
-        if (period === "morning") return task.includes("缓冲：统计顺延时使用");
+        if (period === "morning") return task.includes("缓冲：");
         if (period === "afternoon") return true;
         return task.includes("缓冲：统计顺延时使用") ||
           task.includes("不排固定任务") ||
@@ -1790,7 +1800,7 @@
 
     function locateToday() {
       const diff = daysBetween(todayISO(), baseStartDate) + 1;
-      const day = Math.min(Math.max(diff, 1), 25);
+      const day = Math.min(Math.max(diff, 1), daily.length);
       const row = document.getElementById(`day-${day}`);
       if (row) {
         row.scrollIntoView({ behavior: "smooth", block: "center" });
