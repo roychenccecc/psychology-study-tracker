@@ -506,7 +506,7 @@
         <li>统计未完成时优先下午；统计完成后，下午可接普心看书/做题。</li>
         <li>普心：晚上听课 -> 最近高强度日上午看书 -> 晚上做题。</li>
         <li>错题、订正、回书、复习不排入主计划，用碎片化时间处理。</li>
-        <li>逾期未完成会自动顺延；补登记时填真实完成时间，可把计划提前校正回来。</li>
+        <li>专业课逾期未完成会自动顺延；英语错过则不再顺延。</li>
         <li>25天是主计划；普心按间隔记忆顺延，不做二轮背诵。</li>
       </ul>
     </section>
@@ -1299,6 +1299,8 @@
           occupiedEnglishSlots.add(slotKey(schedule[entry.id]));
           return;
         }
+
+        if (daysBetween(today, baseDateForDay(entry.day)) > 0) return;
 
         const originPosition = slotPosition({ day: entry.day, period: entry.period });
         const candidates = [];
