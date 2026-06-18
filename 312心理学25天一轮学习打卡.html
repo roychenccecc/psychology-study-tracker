@@ -1052,7 +1052,8 @@
       if (task.includes("周六晚休") || task.includes("上午不排固定任务")) return false;
       if (kind === "english") return period === "evening";
       if (kind === "stat") {
-        return ["morning", "afternoon"].includes(period) && (task.includes("缓冲：") || isSundayMorning(day, period));
+        if (period === "afternoon") return true;
+        return period === "morning" && (task.includes("缓冲：") || isSundayMorning(day, period));
       }
       if (kind === "psychLecture") {
         return period === "evening";
