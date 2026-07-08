@@ -669,19 +669,19 @@
       ["7/5 周日", 30, "intense", "高强度", "缓冲：顺延时使用", "缓冲：顺延时使用", "英语1h"],
       ["7/6 周一", 31, "normal", "普通日", "缓冲：顺延时使用", "缓冲：顺延时使用", "不排固定任务"],
       ["7/7 周二", 32, "intense", "高强度", "缓冲：顺延时使用", "缓冲：顺延时使用", "英语1h"],
-      ["7/8 周三", 33, "intense", "高强度", "缓冲：每日复习/顺延", "白天碎片：统计第19章做题", "实验第1章听课"],
+      ["7/8 周三", 33, "intense", "高强度", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "实验第1章听课"],
       ["7/9 周四", 34, "normal", "普通日", "上午不排固定任务", "白天碎片：实验第1章做题", "缓冲：每日复习/顺延"],
-      ["7/10 周五", 35, "normal", "普通日", "缓冲：每日复习/顺延", "白天碎片：普心第13章做题", "实验第2章听课"],
+      ["7/10 周五", 35, "normal", "普通日", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "实验第2章听课"],
       ["7/11 周六", 36, "rest", "周六晚可排", "缓冲：每日复习/写题", "白天碎片：实验第2章做题", "缓冲：顺延时使用"],
       ["7/12 周日", 37, "intense", "高强度", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "实验第3章听课"],
       ["7/13 周一", 38, "normal", "普通日", "缓冲：每日复习/写题", "白天碎片：实验第3章做题", "缓冲：每日复习/顺延"],
-      ["7/14 周二", 39, "intense", "高强度", "缓冲：每日复习/顺延", "白天碎片：普心第14章看书", "实验第4章听课"],
+      ["7/14 周二", 39, "intense", "高强度", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "实验第4章听课"],
       ["7/15 周三", 40, "intense", "高强度", "缓冲：每日复习/写题", "白天碎片：实验第4章做题", "缓冲：每日复习/顺延"],
       ["7/16 周四", 41, "normal", "普通日", "上午不排固定任务", "缓冲：每日复习/顺延", "实验第5章听课"],
       ["7/17 周五", 42, "normal", "普通日", "缓冲：每日复习/写题", "白天碎片：实验第5章做题", "缓冲：每日复习/顺延"],
       ["7/18 周六", 43, "rest", "周六晚可排", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "实验第6章听课"],
       ["7/19 周日", 44, "intense", "高强度", "缓冲：每日复习/写题", "白天碎片：实验第6章做题", "缓冲：每日复习/顺延"],
-      ["7/20 周一", 45, "normal", "普通日", "缓冲：每日复习/顺延", "白天碎片：普心第14章做题", "实验第7章听课"],
+      ["7/20 周一", 45, "normal", "普通日", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "实验第7章听课"],
       ["7/21 周二", 46, "intense", "高强度", "缓冲：每日复习/写题", "白天碎片：实验第7章做题", "缓冲：每日复习/顺延"],
       ["7/22 周三", 47, "intense", "高强度", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "发展第1章听课"],
       ["7/23 周四", 48, "normal", "普通日", "上午不排固定任务", "白天碎片：发展第1章做题", "缓冲：每日复习/顺延"],
@@ -1222,11 +1222,6 @@
       return entry[index] || "";
     }
 
-    function isLegacyPreExtensionEntry(entry) {
-      return ["psych", "stat"].includes(entry.stream) &&
-        daysBetween(extensionStartDate, baseDateForDay(entry.day)) > 0;
-    }
-
     function isSundayMorning(day, period) {
       return period === "morning" && parseLocalDate(baseDateForDay(day)).getDay() === 0;
     }
@@ -1416,11 +1411,6 @@
           }
           return;
         }
-        if (isLegacyPreExtensionEntry(entry)) {
-          scheduleEntryAtSlot(schedule, entry, { day: entry.day, period: entry.period }, occupiedStudySlots, occupiedEveningSlots, new Set(), dayChapters);
-          return;
-        }
-
         let afterPosition = sequencePosition;
         if (
           chapter &&
@@ -1483,11 +1473,6 @@
           sequencePosition = Math.max(sequencePosition, scheduledPosition(completed));
           return;
         }
-        if (isLegacyPreExtensionEntry(entry)) {
-          scheduleEntryAtSlot(schedule, entry, { day: entry.day, period: entry.period }, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters);
-          return;
-        }
-
         let afterPosition = sequencePosition;
         if (chapter && type === "read" && chapterState[chapter]?.lecture) {
           afterPosition = Math.max(afterPosition, scheduledPosition(chapterState[chapter].lecture));
