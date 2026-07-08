@@ -487,14 +487,34 @@
         <div class="progress"><div class="bar" id="dailyBar"></div></div>
       </div>
       <div class="card metric">
-        <div class="label">普心/统计收尾</div>
-        <div class="value" id="legacyValue">0/0</div>
-        <div class="progress"><div class="bar" id="legacyBar"></div></div>
+        <div class="label">普心</div>
+        <div class="value" id="psychValue">0/0</div>
+        <div class="progress"><div class="bar" id="psychBar"></div></div>
       </div>
       <div class="card metric">
-        <div class="label">新科目章节</div>
-        <div class="value" id="newSubjectsValue">0/0</div>
-        <div class="progress"><div class="bar" id="newSubjectsBar"></div></div>
+        <div class="label">统计</div>
+        <div class="value" id="statValue">0/0</div>
+        <div class="progress"><div class="bar" id="statBar"></div></div>
+      </div>
+      <div class="card metric">
+        <div class="label">实验</div>
+        <div class="value" id="expValue">0/0</div>
+        <div class="progress"><div class="bar" id="expBar"></div></div>
+      </div>
+      <div class="card metric">
+        <div class="label">发心</div>
+        <div class="value" id="devValue">0/0</div>
+        <div class="progress"><div class="bar" id="devBar"></div></div>
+      </div>
+      <div class="card metric">
+        <div class="label">教心</div>
+        <div class="value" id="eduValue">0/0</div>
+        <div class="progress"><div class="bar" id="eduBar"></div></div>
+      </div>
+      <div class="card metric">
+        <div class="label">社心</div>
+        <div class="value" id="socialValue">0/0</div>
+        <div class="progress"><div class="bar" id="socialBar"></div></div>
       </div>
     </div>
 
@@ -2031,20 +2051,12 @@
 
     function updateProgress() {
       const [allDone, allTotal] = countChecked("input[type='checkbox'][data-id]");
-      const legacySelectors = [
-        "input[data-id='psych-9-做题']",
-        "input[data-id='psych-10-看书']",
-        "input[data-id='psych-10-做题']",
-        "input[data-id='stat-7-做题']"
-      ].join(",");
-      const newSubjectSelectors = [
-        "input[data-id^='exp-']",
-        "input[data-id^='dev-']",
-        "input[data-id^='edu-']",
-        "input[data-id^='social-']"
-      ].join(",");
-      const [legacyDone, legacyTotal] = countChecked(legacySelectors);
-      const [newSubjectsDone, newSubjectsTotal] = countChecked(newSubjectSelectors);
+      const [psychDone, psychTotal] = countChecked("input[data-id^='psych-']");
+      const [statDone, statTotal] = countChecked("input[data-id^='stat-']");
+      const [expDone, expTotal] = countChecked("input[data-id^='exp-']");
+      const [devDone, devTotal] = countChecked("input[data-id^='dev-']");
+      const [eduDone, eduTotal] = countChecked("input[data-id^='edu-']");
+      const [socialDone, socialTotal] = countChecked("input[data-id^='social-']");
       const state = readState();
       const dailyTotal = daily.length;
       const dailyDone = daily.filter(([, day]) => Boolean(state[`daily-${day}`])).length;
@@ -2053,8 +2065,12 @@
       document.getElementById("totalValue").textContent = `${percent}%`;
       document.getElementById("totalBar").style.width = `${percent}%`;
       setMetric("dailyValue", "dailyBar", dailyDone, dailyTotal, "");
-      setMetric("legacyValue", "legacyBar", legacyDone, legacyTotal, "");
-      setMetric("newSubjectsValue", "newSubjectsBar", newSubjectsDone, newSubjectsTotal, "");
+      setMetric("psychValue", "psychBar", psychDone, psychTotal, "");
+      setMetric("statValue", "statBar", statDone, statTotal, "");
+      setMetric("expValue", "expBar", expDone, expTotal, "");
+      setMetric("devValue", "devBar", devDone, devTotal, "");
+      setMetric("eduValue", "eduBar", eduDone, eduTotal, "");
+      setMetric("socialValue", "socialBar", socialDone, socialTotal, "");
     }
 
     function locateToday() {
