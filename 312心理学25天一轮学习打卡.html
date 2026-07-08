@@ -468,6 +468,7 @@
       <div class="actions">
         <button id="todayBtn" class="primary" type="button">定位今天</button>
         <button id="exportBtn" type="button">导出进度</button>
+        <button id="importBtn" type="button">导入进度</button>
         <button id="resetBtn" type="button">清空勾选</button>
       </div>
     </div>
@@ -2074,6 +2075,31 @@
       });
     }
 
+    function importProgress() {
+      const text = prompt("粘贴之前导出的进度数据：");
+      if (text === null) return;
+
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        alert("导入失败：这不是有效的 JSON 进度数据。");
+        return;
+      }
+
+      if (!payload || typeof payload !== "object" || !payload.checkboxes || typeof payload.checkboxes !== "object") {
+        alert("导入失败：没有找到 checkboxes 进度字段。");
+        return;
+      }
+
+      if (!confirm("导入会覆盖当前这个浏览器里的打卡记录，确定继续吗？")) return;
+      localStorage.setItem(storageKey, JSON.stringify(payload.checkboxes));
+      localStorage.setItem(reviewKey, payload.review || "");
+      renderDaily();
+      applyState();
+      alert("进度已导入。");
+    }
+
     function resetProgress() {
       if (!confirm("确定清空所有勾选和复盘吗？")) return;
       localStorage.removeItem(storageKey);
@@ -2093,6 +2119,7 @@
 
     document.getElementById("todayBtn").addEventListener("click", locateToday);
     document.getElementById("exportBtn").addEventListener("click", exportProgress);
+    document.getElementById("importBtn").addEventListener("click", importProgress);
     document.getElementById("resetBtn").addEventListener("click", resetProgress);
   </script>
 </body>
