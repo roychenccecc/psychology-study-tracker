@@ -1055,8 +1055,11 @@
       return links;
     }
 
+    let dailySegmentEntriesCache = null;
+
     function dailySegmentEntries() {
-      return daily.flatMap(([, day, , , morningTask, afternoonTask, eveningTask]) => {
+      if (dailySegmentEntriesCache) return dailySegmentEntriesCache;
+      dailySegmentEntriesCache = daily.flatMap(([, day, , , morningTask, afternoonTask, eveningTask]) => {
         const dayId = `daily-${day}`;
         return [
           ["morning", morningTask],
@@ -1079,6 +1082,7 @@
           });
         });
       });
+      return dailySegmentEntriesCache;
     }
 
     function segmentEntryById(segmentId) {
@@ -1566,8 +1570,19 @@
       return schedule;
     }
 
+    let entryScheduleCacheKey = "";
+    let entryScheduleCacheValue = null;
+
+    function entryScheduleForState(state) {
+      const key = `${todayISO()}|${JSON.stringify(state)}`;
+      if (entryScheduleCacheValue && entryScheduleCacheKey === key) return entryScheduleCacheValue;
+      entryScheduleCacheKey = key;
+      entryScheduleCacheValue = buildEntrySchedule(state);
+      return entryScheduleCacheValue;
+    }
+
     function plannedDateForEntry(entry, state) {
-      return buildEntrySchedule(state)[entry.id]?.plannedDate || baseDateForDay(entry.day);
+      return entryScheduleForState(state)[entry.id]?.plannedDate || baseDateForDay(entry.day);
     }
 
     function completionDateForSegment(state, segmentId) {
@@ -1583,12 +1598,12 @@
     }
 
     function rowDayIdForEntry(entry, state) {
-      const scheduled = buildEntrySchedule(state)[entry.id];
+      const scheduled = entryScheduleForState(state)[entry.id];
       return scheduled ? `daily-${scheduled.day}` : entry.dayId;
     }
 
     function visibleEntriesForCell(rowDay, period, state = readState()) {
-      const schedule = buildEntrySchedule(state);
+      const schedule = entryScheduleForState(state);
       return dailySegmentEntries()
         .filter(entry => schedule[entry.id]?.day === rowDay && schedule[entry.id]?.period === period)
         .sort((a, b) => entrySort(a, b));
@@ -1882,8 +1897,13 @@
 
     function streamCompletionMessage(stream, delta) {
       const name = streamNames[stream] || "当前内容";
+      if (["exp", "dev", "edu", "social"].includes(stream)) {
+        if (delta < 0) return `这个${name}任务比当前计划提前${Math.abs(delta)}天完成。确认后会按真实完成时间记录，并参与${name}后续排程。`;
+        if (delta > 0) return `这个${name}任务比当前计划晚${delta}天完成。确认后会按真实完成时间记录，并让${name}后续未完成任务顺延。`;
+        return `这个${name}任务与当前计划同一天完成。确认后记录完成时间。`;
+      }
       if (stream !== "psych" && stream !== "stat") {
-        return "这个时段不参与普心/统计滚动，只记录完成时间。";
+        return "这个时段只记录完成时间，不参与专业课滚动。";
       }
       if (delta < 0) return `这个${name}任务比当前计划提前${Math.abs(delta)}天完成。如果是忘了登记，确认后会按真实完成日期校正这个任务。`;
       if (delta > 0) return `这个${name}任务比当前计划晚${delta}天完成。确认后只校正这个任务，不影响同一天已经完成的其他任务。`;
