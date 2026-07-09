@@ -477,7 +477,7 @@
   <main class="wrap">
     <div class="grid">
       <div class="card metric">
-        <div class="label">总进度</div>
+        <div class="label">总进度（加权）</div>
         <div class="value" id="totalValue">0%</div>
         <div class="progress"><div class="bar" id="totalBar"></div></div>
       </div>
@@ -2083,7 +2083,6 @@
     }
 
     function updateProgress() {
-      const [allDone, allTotal] = countChecked("input[type='checkbox'][data-id]");
       const [psychDone, psychTotal] = countChecked("input[data-id^='psych-']");
       const [statDone, statTotal] = countChecked("input[data-id^='stat-']");
       const [expDone, expTotal] = countChecked("input[data-id^='exp-']");
@@ -2095,9 +2094,17 @@
       const dailyTotal = daily.length;
       const dailyDone = daily.filter(([, day]) => Boolean(state[`daily-${day}`])).length;
 
-      const percent = allTotal ? Math.round((allDone / allTotal) * 100) : 0;
-      document.getElementById("totalValue").textContent = `${percent}%`;
-      document.getElementById("totalBar").style.width = `${percent}%`;
+      const ratio = (done, total) => total ? done / total : 0;
+      const weightedScore =
+        ratio(psychDone, psychTotal) * 80 +
+        ratio(devDone, devTotal) * 40 +
+        ratio(eduDone, eduTotal) * 30 +
+        ratio(expDone, expTotal) * 60 +
+        ratio(statDone + measureDone, statTotal + measureTotal) * 70 +
+        ratio(socialDone, socialTotal) * 20;
+      const weightedPercent = Math.round((weightedScore / 300) * 100);
+      document.getElementById("totalValue").textContent = `${weightedPercent}%`;
+      document.getElementById("totalBar").style.width = `${weightedPercent}%`;
       setMetric("dailyValue", "dailyBar", dailyDone, dailyTotal, "");
       setMetric("psychValue", "psychBar", psychDone, psychTotal, "");
       setMetric("statValue", "statBar", statDone, statTotal, "");
