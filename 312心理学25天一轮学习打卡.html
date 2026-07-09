@@ -276,6 +276,41 @@
       min-width: 170px;
     }
 
+    .review-task {
+      min-width: 220px;
+    }
+
+    .review-item + .review-item {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .review-task label.task {
+      grid-template-columns: 22px 1fr;
+      padding: 0;
+    }
+
+    .review-task label.task:hover {
+      background: transparent;
+    }
+
+    .review-meta {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .review-done-text {
+      display: block;
+      margin-top: 4px;
+      color: #1f6b34;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     .segment-item + .segment-item {
       margin-top: 12px;
       padding-top: 12px;
@@ -578,6 +613,7 @@
               <th>日型</th>
               <th>上午</th>
               <th>下午</th>
+              <th>白天复习</th>
               <th>晚上</th>
               <th>闭环记录</th>
             </tr>
@@ -632,6 +668,8 @@
   <script>
     const storageKey = "psych312-plan-202606";
     const reviewKey = "psych312-review-202606";
+    const memoryBridgeKey = "psych312-memory-review-bridge-v1";
+    const memoryReviewAppUrl = "https://roychenccecc.github.io/memory-review-app/";
     const baseStartDate = "2026-06-06";
     const extensionStartDate = "2026-07-08";
     const weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -893,6 +931,50 @@
       return `${date} ${time}`;
     }
 
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function readMemoryBridge() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(memoryBridgeKey)) || {};
+        return {
+          version: 1,
+          dueReviews: Array.isArray(parsed.dueReviews) ? parsed.dueReviews : [],
+          completedReviews: Array.isArray(parsed.completedReviews) ? parsed.completedReviews : [],
+          reviewCompletions: Array.isArray(parsed.reviewCompletions) ? parsed.reviewCompletions : [],
+          learningDrafts: Array.isArray(parsed.learningDrafts) ? parsed.learningDrafts : [],
+          updatedAt: parsed.updatedAt || ""
+        };
+      } catch {
+        return {
+          version: 1,
+          dueReviews: [],
+          completedReviews: [],
+          reviewCompletions: [],
+          learningDrafts: [],
+          updatedAt: ""
+        };
+      }
+    }
+
+    function writeMemoryBridge(bridge) {
+      localStorage.setItem(memoryBridgeKey, JSON.stringify({
+        ...bridge,
+        version: 1,
+        updatedAt: new Date().toISOString()
+      }));
+    }
+
+    function bridgeReviewKey(item) {
+      return item.key || `${item.sourceType}:${item.sourceId}`;
+    }
+
     function baseDateForDay(day) {
       return addDays(baseStartDate, day - 1);
     }
@@ -913,6 +995,7 @@
             <td>${typeLabel(kind, type)}</td>
             ${segmentCell(id, day, "morning", "上午", morningTask)}
             ${segmentCell(id, day, "afternoon", "下午", afternoonTask)}
+            ${reviewCell(day)}
             ${segmentCell(id, day, "evening", "晚上", eveningTask)}
             <td class="day-done">
               <span class="small" data-day-status="${id}">未闭环</span>
@@ -965,6 +1048,75 @@
       return `
         <td class="segment-task">
           ${controls}
+        </td>
+      `;
+    }
+
+    function todayBridgeReviews() {
+      const bridge = readMemoryBridge();
+      const today = todayISO();
+      const items = new Map();
+      bridge.dueReviews
+        .filter(item => item.scheduledDate <= today)
+        .forEach(item => items.set(bridgeReviewKey(item), { ...item, completedAt: "", completedDate: "" }));
+      bridge.completedReviews
+        .filter(item => item.completedDate === today)
+        .forEach(item => {
+          const key = bridgeReviewKey(item);
+          items.set(key, { ...(items.get(key) || item), ...item, completedAt: item.completedAt, completedDate: item.completedDate });
+        });
+      bridge.reviewCompletions
+        .filter(item => item.source === "psych312" && item.status !== "failed" && (item.completedDate || String(item.completedAt || "").slice(0, 10)) === today)
+        .forEach(item => {
+          const key = bridgeReviewKey(item);
+          items.set(key, { ...(items.get(key) || item), ...item, completedAt: item.completedAt, completedDate: item.completedDate });
+        });
+      return Array.from(items.values()).sort((a, b) => {
+        const aDone = Boolean(a.completedAt);
+        const bDone = Boolean(b.completedAt);
+        if (aDone !== bDone) return aDone ? 1 : -1;
+        return (a.scheduledDate || "").localeCompare(b.scheduledDate || "") || (a.title || "").localeCompare(b.title || "", "zh-CN");
+      });
+    }
+
+    function reviewEntriesForDay(day) {
+      return baseDateForDay(day) === todayISO() ? todayBridgeReviews() : [];
+    }
+
+    function reviewCell(day) {
+      const entries = reviewEntriesForDay(day);
+      if (!entries.length) {
+        return `
+          <td class="review-task">
+            <span class="period-label">白天<span class="stream-badge">复习</span></span>
+            <span class="segment-plan">复习程序同步</span>
+            <span class="small">${baseDateForDay(day) === todayISO() ? "今天暂无待复习" : "只显示当天复习"}</span>
+          </td>
+        `;
+      }
+      const doneCount = entries.filter(item => item.completedAt).length;
+      const html = entries.map(item => {
+        const key = bridgeReviewKey(item);
+        const done = Boolean(item.completedAt);
+        const status = item.status === "consumed" ? "已同步到复习程序" : (done ? "待复习程序确认" : (item.isOverdue ? "逾期" : "今日"));
+        const dateText = item.scheduledDate ? `计划：${item.scheduledDate}` : "";
+        return `
+          <div class="review-item">
+            <span class="period-label">白天<span class="stream-badge">复习</span></span>
+            <span class="segment-plan">${status}${dateText ? ` · ${escapeHtml(dateText)}` : ""}</span>
+            <label class="task ${done ? "done" : ""}">
+              <input type="checkbox" data-memory-review-key="${escapeHtml(key)}" ${done ? "checked" : ""}>
+              <span>${escapeHtml(item.title || "未命名复习")}</span>
+            </label>
+            ${item.tags?.length ? `<span class="review-meta">${escapeHtml(item.tags.join(" / "))}</span>` : ""}
+            ${done ? `<span class="review-done-text">完成：${escapeHtml(formatDateTime(String(item.completedAt).slice(0, 16)))}</span>` : ""}
+          </div>
+        `;
+      }).join("");
+      return `
+        <td class="review-task">
+          <span class="segment-plan">白天复习：${doneCount}/${entries.length}</span>
+          ${html}
         </td>
       `;
     }
@@ -1797,6 +1949,10 @@
     function bindState() {
       document.addEventListener("change", event => {
         const input = event.target;
+        if (input.matches("input[type='checkbox'][data-memory-review-key]")) {
+          handleMemoryReviewSegment(input);
+          return;
+        }
         if (input.matches("input[type='checkbox'][data-id]")) {
           if (isDailySegmentId(input.dataset.id)) {
             handleDailySegment(input);
@@ -1826,6 +1982,10 @@
 
       document.getElementById("review").addEventListener("input", event => {
         localStorage.setItem(reviewKey, event.target.value);
+      });
+
+      window.addEventListener("storage", event => {
+        if (event.key === memoryBridgeKey) applyState();
       });
     }
 
@@ -1953,6 +2113,130 @@
       applyState();
     }
 
+    function memoryReviewByKey(key) {
+      return todayBridgeReviews().find(item => bridgeReviewKey(item) === key) || null;
+    }
+
+    function handleMemoryReviewSegment(input) {
+      const key = input.dataset.memoryReviewKey;
+      const review = memoryReviewByKey(key);
+      if (!review) {
+        alert("没有找到这条复习任务。请先打开复习程序刷新一次今日复习。");
+        input.checked = false;
+        return;
+      }
+      if (!input.checked) {
+        const bridge = readMemoryBridge();
+        if (review.status === "consumed" || bridge.completedReviews.some(item => bridgeReviewKey(item) === key)) {
+          alert("这条复习已经写入复习程序。如需修改，请去复习程序的记忆记录里改。");
+          input.checked = true;
+          return;
+        }
+        bridge.reviewCompletions = bridge.reviewCompletions.filter(item => item.key !== key || item.status === "consumed");
+        writeMemoryBridge(bridge);
+        renderDaily();
+        applyState();
+        return;
+      }
+
+      const defaultTime = nowLocalDateTime();
+      const actualTime = prompt("确认这条复习的完成时间，可修改：", defaultTime);
+      if (actualTime === null) {
+        input.checked = false;
+        return;
+      }
+      if (!validLocalDateTime(actualTime)) {
+        alert("时间格式请用 YYYY-MM-DDTHH:mm，例如 2026-07-09T16:30。");
+        input.checked = false;
+        return;
+      }
+      const completedDate = dateFromDateTime(actualTime);
+      if (!confirm(`这条复习会先记录在312页面，并在复习程序打开时同步为正式复习记录。\n\n复习内容：${review.title || "未命名复习"}\n完成时间：${formatDateTime(actualTime)}`)) {
+        input.checked = false;
+        return;
+      }
+      const bridge = readMemoryBridge();
+      const completion = {
+        id: `312-${key}-${completedDate}`,
+        key,
+        source: "psych312",
+        status: "pending",
+        taskId: review.taskId || "",
+        sourceType: review.sourceType,
+        sourceId: review.sourceId,
+        title: review.title || "",
+        tags: review.tags || [],
+        completedAt: actualTime,
+        completedDate,
+        recallPercent: 80,
+        notes: "312打卡页记录完成。",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      bridge.reviewCompletions = [
+        ...bridge.reviewCompletions.filter(item => item.id !== completion.id && item.key !== key),
+        completion
+      ];
+      writeMemoryBridge(bridge);
+      renderDaily();
+      applyState();
+    }
+
+    function chapterTitleForEntry(entry) {
+      const config = subjectConfigs[entry.stream];
+      const chapter = entryChapter(entry);
+      const lists = { psych, stat, exp, dev, edu, social, measure };
+      if (!config || !chapter) return entry.task;
+      return lists[entry.stream]?.[chapter - config.start]?.[0] || `${streamNames[entry.stream]}第${chapter}章`;
+    }
+
+    function learningDraftKeyForEntry(entry) {
+      const chapter = entryChapter(entry);
+      if (!subjectConfigs[entry.stream] || !chapter) return "";
+      if (entry.stream === "english" || entry.stream === "fixed") return "";
+      if (/复习|缓冲|总复盘|每日复习/.test(entry.task)) return "";
+      return `${entry.stream}-${chapter}`;
+    }
+
+    function maybeOpenLearningDraftFromSegment(state, entry, actualDate) {
+      if (!entry || actualDate < todayISO()) return;
+      const draftKey = learningDraftKeyForEntry(entry);
+      if (!draftKey) return;
+      state.memoryLearningDrafts = state.memoryLearningDrafts || {};
+      if (state.memoryLearningDrafts[draftKey]) return;
+
+      const bridge = readMemoryBridge();
+      const existing = bridge.learningDrafts.find(item => item.sourceKey === draftKey && item.status !== "discarded");
+      if (existing) {
+        state.memoryLearningDrafts[draftKey] = existing.id;
+        return;
+      }
+
+      const title = chapterTitleForEntry(entry);
+      const draftId = `312-draft-${draftKey}-${Date.now()}`;
+      const draft = {
+        id: draftId,
+        source: "psych312",
+        sourceKey: draftKey,
+        status: "pending",
+        title,
+        date: actualDate,
+        tags: [streamNames[entry.stream], title],
+        notes: `来自312打卡页：${entry.task}\n完成日期：${actualDate}\n\n可在这里补充重点、易混点、需要回看的材料。`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      bridge.learningDrafts = [
+        ...bridge.learningDrafts.filter(item => item.id !== draftId && item.sourceKey !== draftKey),
+        draft
+      ];
+      writeMemoryBridge(bridge);
+      state.memoryLearningDrafts[draftKey] = draftId;
+      const url = `${memoryReviewAppUrl}?from=312&draftId=${encodeURIComponent(draftId)}`;
+      const opened = window.open(url, "_blank", "noopener");
+      if (!opened) alert(`已生成复习程序草稿，但浏览器拦截了新标签。\n请手动打开：${url}`);
+    }
+
     function handleDailySegment(input) {
       const segmentId = input.dataset.id;
       const stream = input.dataset.stream || "fixed";
@@ -2014,6 +2298,7 @@
       state[`${segmentId}-actualTime`] = actualTime;
       if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
       syncChaptersFromDailySegment(state, segmentId, true);
+      maybeOpenLearningDraftFromSegment(state, entry, actualDate);
 
       const finalRowId = entry ? rowDayIdForEntry(entry, state) : rowId;
       if (finalRowId !== rowId) {
