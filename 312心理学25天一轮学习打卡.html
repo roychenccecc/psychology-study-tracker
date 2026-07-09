@@ -463,7 +463,7 @@
     <div class="wrap top">
       <div>
         <h1>312心理学滚动学习打卡</h1>
-        <p class="subtitle">普心和统计进入每日复习；2026-07-08 起接实验、发展、教育、社会心理学</p>
+        <p class="subtitle">普心和统计进入每日复习；2026-07-08 起接实验、发展、教育、社会、测量</p>
       </div>
       <div class="actions">
         <button id="todayBtn" class="primary" type="button">定位今天</button>
@@ -516,6 +516,11 @@
         <div class="value" id="socialValue">0/0</div>
         <div class="progress"><div class="bar" id="socialBar"></div></div>
       </div>
+      <div class="card metric">
+        <div class="label">测量</div>
+        <div class="value" id="measureValue">0/0</div>
+        <div class="progress"><div class="bar" id="measureBar"></div></div>
+      </div>
     </div>
 
     <section class="card">
@@ -529,7 +534,7 @@
         <li>实验：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>发展/教育：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>社会：晚上听课 -> 次日白天碎片做题 -> 当晚继续下一章，不另排看书。</li>
-        <li>新科目按“实验 -> 发展 -> 教育 -> 社会”串行，不互相插队。</li>
+        <li>新科目按“实验 -> 发展 -> 教育 -> 社会 -> 测量”串行，不互相插队。</li>
         <li>逾期未完成会自动顺延；任务不会早于原定日期自动提前。</li>
       </ul>
     </section>
@@ -613,6 +618,11 @@
     </section>
 
     <section class="card">
+      <h2>心理测量学章节进度</h2>
+      <div class="chapter-grid" id="measureChapters"></div>
+    </section>
+
+    <section class="card">
       <h2>每日复盘</h2>
       <p class="small">自动保存在本浏览器。每天写三行就够。</p>
       <textarea id="review" placeholder="今天完成：&#10;卡住的点：&#10;明天第一件事："></textarea>
@@ -632,6 +642,7 @@
       dev: "发展",
       edu: "教育",
       social: "社会",
+      measure: "测量",
       english: "英语",
       fixed: "固定"
     };
@@ -719,11 +730,18 @@
       ["8/24 周一", 80, "normal", "普通日", "缓冲：每日复习/写题", "白天碎片：社会第3章做题", "社会第4章听课"],
       ["8/25 周二", 81, "intense", "高强度", "缓冲：每日复习/写题", "白天碎片：社会第4章做题", "社会第5章听课"],
       ["8/26 周三", 82, "intense", "高强度", "缓冲：每日复习/写题", "白天碎片：社会第5章做题", "社会第6章听课"],
-      ["8/27 周四", 83, "normal", "普通日", "上午不排固定任务", "白天碎片：社会第6章做题", "缓冲：总复盘/顺延"],
-      ["8/28 周五", 84, "normal", "普通日", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
-      ["8/29 周六", 85, "rest", "周六晚可排", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
-      ["8/30 周日", 86, "intense", "高强度", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
-      ["8/31 周一", 87, "normal", "普通日", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"]
+      ["8/27 周四", 83, "normal", "普通日", "上午不排固定任务", "白天碎片：社会第6章做题", "测量第1章听课"],
+      ["8/28 周五", 84, "normal", "普通日", "缓冲：每日复习/写题", "白天碎片：测量第1章做题", "测量第2章听课"],
+      ["8/29 周六", 85, "rest", "周六晚可排", "缓冲：每日复习/写题", "白天碎片：测量第2章做题", "测量第3章听课"],
+      ["8/30 周日", 86, "intense", "高强度", "缓冲：每日复习/写题", "白天碎片：测量第3章做题", "测量第4章听课"],
+      ["8/31 周一", 87, "normal", "普通日", "缓冲：每日复习/写题", "白天碎片：测量第4章做题", "测量第5章听课"],
+      ["9/1 周二", 88, "intense", "高强度", "缓冲：总复盘/顺延", "白天碎片：测量第5章做题", "缓冲：总复盘/顺延"],
+      ["9/2 周三", 89, "intense", "高强度", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
+      ["9/3 周四", 90, "normal", "普通日", "上午不排固定任务", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
+      ["9/4 周五", 91, "normal", "普通日", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
+      ["9/5 周六", 92, "rest", "周六晚可排", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
+      ["9/6 周日", 93, "intense", "高强度", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
+      ["9/7 周一", 94, "normal", "普通日", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"]
     ];
 
     const psych = [
@@ -791,13 +809,22 @@
       ["社会第6章", "8/26听课，8/27做题"]
     ];
 
+    const measure = [
+      ["测量第1章", "8/27听课，8/28做题"],
+      ["测量第2章", "8/28听课，8/29做题"],
+      ["测量第3章", "8/29听课，8/30做题"],
+      ["测量第4章", "8/30听课，8/31做题"],
+      ["测量第5章", "8/31听课，9/1做题"]
+    ];
+
     const subjectConfigs = {
       psych: { start: 4, end: 14, tasks: ["听课", "看书", "做题"] },
       stat: { start: 12, end: 19, tasks: ["看书", "做题", "方法判断"] },
       exp: { start: 1, end: 7, tasks: ["听课", "做题"] },
       dev: { start: 1, end: 9, tasks: ["听课", "做题"] },
       edu: { start: 1, end: 6, tasks: ["听课", "做题"] },
-      social: { start: 1, end: 6, tasks: ["听课", "做题"] }
+      social: { start: 1, end: 6, tasks: ["听课", "做题"] },
+      measure: { start: 1, end: 5, tasks: ["听课", "做题"] }
     };
 
     function typeLabel(kind, text) {
@@ -970,6 +997,7 @@
       if (/发展第\d+章/.test(task)) return "dev";
       if (/教育第\d+章/.test(task)) return "edu";
       if (/社会第\d+章/.test(task)) return "social";
+      if (/测量第\d+章/.test(task)) return "measure";
       return "";
     }
 
@@ -1557,7 +1585,7 @@
         day: daysBetween(extensionStartDate, baseStartDate),
         period: "evening"
       });
-      ["exp", "dev", "edu", "social"].forEach(stream => {
+      ["exp", "dev", "edu", "social", "measure"].forEach(stream => {
         const before = phasePosition;
         scheduleCourseQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters, stream, before);
         const streamPositions = entries
@@ -1897,7 +1925,7 @@
 
     function streamCompletionMessage(stream, delta) {
       const name = streamNames[stream] || "当前内容";
-      if (["exp", "dev", "edu", "social"].includes(stream)) {
+      if (["exp", "dev", "edu", "social", "measure"].includes(stream)) {
         if (delta < 0) return `这个${name}任务比当前计划提前${Math.abs(delta)}天完成。确认后会按真实完成时间记录，并参与${name}后续排程。`;
         if (delta > 0) return `这个${name}任务比当前计划晚${delta}天完成。确认后会按真实完成时间记录，并让${name}后续未完成任务顺延。`;
         return `这个${name}任务与当前计划同一天完成。确认后记录完成时间。`;
@@ -2062,6 +2090,7 @@
       const [devDone, devTotal] = countChecked("input[data-id^='dev-']");
       const [eduDone, eduTotal] = countChecked("input[data-id^='edu-']");
       const [socialDone, socialTotal] = countChecked("input[data-id^='social-']");
+      const [measureDone, measureTotal] = countChecked("input[data-id^='measure-']");
       const state = readState();
       const dailyTotal = daily.length;
       const dailyDone = daily.filter(([, day]) => Boolean(state[`daily-${day}`])).length;
@@ -2076,6 +2105,7 @@
       setMetric("devValue", "devBar", devDone, devTotal, "");
       setMetric("eduValue", "eduBar", eduDone, eduTotal, "");
       setMetric("socialValue", "socialBar", socialDone, socialTotal, "");
+      setMetric("measureValue", "measureBar", measureDone, measureTotal, "");
     }
 
     function locateToday() {
@@ -2144,6 +2174,7 @@
     renderChapters(dev, "devChapters", "dev", ["听课", "做题"]);
     renderChapters(edu, "eduChapters", "edu", ["听课", "做题"]);
     renderChapters(social, "socialChapters", "social", ["听课", "做题"]);
+    renderChapters(measure, "measureChapters", "measure", ["听课", "做题"]);
     bindState();
     applyState();
 
