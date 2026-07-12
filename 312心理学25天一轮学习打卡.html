@@ -570,7 +570,7 @@
         <li>发展/教育：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>社会：晚上听课 -> 次日白天碎片做题 -> 当晚继续下一章，不另排看书。</li>
         <li>新科目按“实验 -> 发展 -> 教育 -> 社会 -> 测量”串行，不互相插队。</li>
-        <li>逾期未完成会自动顺延；任务不会早于原定日期自动提前。</li>
+        <li>逾期未完成会自动顺延；某章前置学习全部完成后，做题会提前到次日起最近的可用白天时段。</li>
       </ul>
     </section>
 
@@ -1639,18 +1639,39 @@
       return typeDiff || entrySort(a, b);
     }
 
-    function nextQueueSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters) {
+    function courseExercisePrerequisitesDone(entries, state, entry) {
+      if (courseTaskType(entry) !== "exercise") return false;
+      const chapter = entryChapter(entry);
+      if (!chapter) return false;
+      const chapterEntries = entries.filter(candidate => (
+        candidate.stream === entry.stream && entryChapter(candidate) === chapter
+      ));
+      const readEntries = chapterEntries.filter(candidate => courseTaskType(candidate) === "read");
+      const prerequisiteEntries = readEntries.length
+        ? readEntries
+        : chapterEntries.filter(candidate => courseTaskType(candidate) === "lecture");
+      return prerequisiteEntries.length > 0 && prerequisiteEntries.every(candidate => (
+        Boolean(state[candidate.id]) && Boolean(state[`${candidate.id}-actualTime`])
+      ));
+    }
+
+    function nextQueueSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters, allowEarlyDaytime = false) {
       const originPosition = slotPosition(entry);
       const baseSlots = entries
         .filter(entry => slotPosition(entry) > afterPosition)
-        .filter(candidate => slotPosition(candidate) >= originPosition)
+        .filter(candidate => allowEarlyDaytime || slotPosition(candidate) >= originPosition)
+        .filter(candidate => !allowEarlyDaytime || candidate.period !== "evening")
         .filter(entry => daysBetween(today, baseDateForDay(entry.day)) <= 0)
         .filter(candidate => !slotConflictsWithDayChapter(entry, candidate, dayChapters))
         .filter(candidate => !slotIsOccupied(kind, candidate, occupiedStudySlots, occupiedEveningSlots))
         .map(candidate => ({ day: candidate.day, period: candidate.period }));
+      const overflowAfterPosition = allowEarlyDaytime
+        ? afterPosition
+        : Math.max(afterPosition, originPosition - 1);
       return [
         ...baseSlots,
-        ...overflowCandidates(kind, Math.max(afterPosition, originPosition - 1), today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters)
+        ...overflowCandidates(kind, overflowAfterPosition, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters)
+          .filter(candidate => !allowEarlyDaytime || candidate.period !== "evening")
       ].sort((a, b) => slotPosition(a) - slotPosition(b))[0] || null;
     }
 
@@ -1685,6 +1706,7 @@
         }
 
         const kind = queueKeyForEntry(entry);
+        const allowEarlyDaytime = type === "exercise" && courseExercisePrerequisitesDone(tasks, state, entry);
         const slot = nextQueueSlot(
           kind,
           afterPosition,
@@ -1693,7 +1715,8 @@
           occupiedStudySlots,
           occupiedEveningSlots,
           entry,
-          dayChapters
+          dayChapters,
+          allowEarlyDaytime
         );
         scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters);
         if (chapter && type !== "other") chapterState[chapter][type] = schedule[entry.id];
@@ -2381,7 +2404,7 @@
     }
 
     function updateRollingInfo() {
-      const text = "当前滚动计划：未完成任务会进入同科目队列，按后续可用格子依次后移。英语优先级最低，周六晚上可承接顺延任务。";
+      const text = "当前滚动计划：未完成任务会进入同科目队列依次后移；某章前置学习全部完成后，做题会自动提前到次日起最近的可用白天时段。英语优先级最低。";
       const node = document.getElementById("rollingInfo");
       if (node) node.textContent = text;
     }
