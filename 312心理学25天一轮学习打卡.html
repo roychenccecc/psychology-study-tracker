@@ -569,7 +569,7 @@
         <li>实验：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>发展/教育：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>社会：晚上听课 -> 次日白天碎片做题 -> 当晚继续下一章，不另排看书。</li>
-        <li>新科目按“实验 -> 发展 -> 教育 -> 社会 -> 测量”串行，不互相插队。</li>
+        <li>新科目默认按“实验 -> 发展 -> 教育 -> 社会 -> 测量”串行；一旦实际提前启动后续科目，就按实际进度填入最近空位。</li>
         <li>逾期未完成会自动顺延；提前完成会让后续计划自动压紧，做题找最近白天，听课找最近晚上。</li>
       </ul>
     </section>
@@ -1684,7 +1684,10 @@
       const lectureTasks = tasks.filter(entry => queueKeyForEntry(entry).endsWith("Lecture")).sort(entrySort);
       const studyTasks = tasks.filter(entry => queueKeyForEntry(entry).endsWith("Study")).sort(entrySort);
       const chapterState = {};
-      let sequencePosition = minimumAfterPosition;
+      const streamAlreadyStarted = tasks.some(entry => (
+        Boolean(state[entry.id]) && Boolean(state[`${entry.id}-actualTime`])
+      ));
+      let sequencePosition = streamAlreadyStarted ? -1 : minimumAfterPosition;
       let lastExercise = null;
 
       tasks.forEach(entry => {
@@ -2424,7 +2427,7 @@
     }
 
     function updateRollingInfo() {
-      const text = "当前滚动计划：未完成任务会进入同科目队列依次后移；提前完成会自动压紧后续计划，做题占最近白天，听课占最近晚上。英语优先级最低。";
+      const text = "当前滚动计划：未完成任务会进入同科目队列依次后移；提前完成会自动压紧后续计划。已经实际启动的后续科目会解除阶段锁，做题占最近白天，听课占最近晚上。英语优先级最低。";
       const node = document.getElementById("rollingInfo");
       if (node) node.textContent = text;
     }
