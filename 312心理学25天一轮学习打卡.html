@@ -570,7 +570,7 @@
         <li>发展/教育：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>社会：晚上听课 -> 次日白天碎片做题 -> 当晚继续下一章，不另排看书。</li>
         <li>新科目按“实验 -> 发展 -> 教育 -> 社会 -> 测量”串行，不互相插队。</li>
-        <li>逾期未完成会自动顺延；某章前置学习全部完成后，做题会提前到次日起最近的可用白天时段。</li>
+        <li>逾期未完成会自动顺延；提前完成会让后续计划自动压紧，做题找最近白天，听课找最近晚上。</li>
       </ul>
     </section>
 
@@ -1655,24 +1655,28 @@
       ));
     }
 
-    function nextQueueSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters, allowEarlyDaytime = false) {
+    function nextQueueSlot(kind, afterPosition, entries, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters, allowEarly = false, daytimeOnly = false) {
       const originPosition = slotPosition(entry);
       const baseSlots = entries
         .filter(entry => slotPosition(entry) > afterPosition)
-        .filter(candidate => allowEarlyDaytime || slotPosition(candidate) >= originPosition)
-        .filter(candidate => !allowEarlyDaytime || candidate.period !== "evening")
+        .filter(candidate => allowEarly || slotPosition(candidate) >= originPosition)
+        .filter(candidate => !daytimeOnly || candidate.period !== "evening")
         .filter(entry => daysBetween(today, baseDateForDay(entry.day)) <= 0)
         .filter(candidate => !slotConflictsWithDayChapter(entry, candidate, dayChapters))
         .filter(candidate => !slotIsOccupied(kind, candidate, occupiedStudySlots, occupiedEveningSlots))
         .map(candidate => ({ day: candidate.day, period: candidate.period }));
-      const overflowAfterPosition = allowEarlyDaytime
+      const overflowAfterPosition = allowEarly
         ? afterPosition
         : Math.max(afterPosition, originPosition - 1);
       return [
         ...baseSlots,
         ...overflowCandidates(kind, overflowAfterPosition, today, occupiedStudySlots, occupiedEveningSlots, entry, dayChapters)
-          .filter(candidate => !allowEarlyDaytime || candidate.period !== "evening")
+          .filter(candidate => !daytimeOnly || candidate.period !== "evening")
       ].sort((a, b) => slotPosition(a) - slotPosition(b))[0] || null;
+    }
+
+    function courseKeepsFreeEveningAfterExercise(stream) {
+      return ["exp", "dev", "edu"].includes(stream);
     }
 
     function scheduleCourseQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters, stream = "psych", minimumAfterPosition = -1) {
@@ -1681,6 +1685,7 @@
       const studyTasks = tasks.filter(entry => queueKeyForEntry(entry).endsWith("Study")).sort(entrySort);
       const chapterState = {};
       let sequencePosition = minimumAfterPosition;
+      let lastExercise = null;
 
       tasks.forEach(entry => {
         const actualTime = state[`${entry.id}-actualTime`];
@@ -1691,10 +1696,21 @@
         if (state[entry.id] && actualTime) {
           const completed = scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters);
           if (chapter && type !== "other") chapterState[chapter][type] = completed;
+          if (chapter && type === "exercise") lastExercise = { chapter, slot: completed };
           sequencePosition = Math.max(sequencePosition, scheduledPosition(completed));
           return;
         }
         let afterPosition = sequencePosition;
+        if (
+          chapter &&
+          type === "lecture" &&
+          !chapterState[chapter]?.lecture &&
+          lastExercise &&
+          lastExercise.chapter < chapter &&
+          courseKeepsFreeEveningAfterExercise(stream)
+        ) {
+          afterPosition = Math.max(afterPosition, endOfDayPosition(lastExercise.slot.day));
+        }
         if (chapter && type === "read" && chapterState[chapter]?.lecture) {
           afterPosition = Math.max(afterPosition, scheduledPosition(chapterState[chapter].lecture));
         }
@@ -1706,7 +1722,9 @@
         }
 
         const kind = queueKeyForEntry(entry);
-        const allowEarlyDaytime = type === "exercise" && courseExercisePrerequisitesDone(tasks, state, entry);
+        const isExtendedCourse = ["exp", "dev", "edu", "social", "measure"].includes(stream);
+        const allowEarly = isExtendedCourse || (type === "exercise" && courseExercisePrerequisitesDone(tasks, state, entry));
+        const daytimeOnly = type === "exercise" && allowEarly;
         const slot = nextQueueSlot(
           kind,
           afterPosition,
@@ -1716,10 +1734,12 @@
           occupiedEveningSlots,
           entry,
           dayChapters,
-          allowEarlyDaytime
+          allowEarly,
+          daytimeOnly
         );
         scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters);
         if (chapter && type !== "other") chapterState[chapter][type] = schedule[entry.id];
+        if (slot && chapter && type === "exercise") lastExercise = { chapter, slot };
         if (slot) sequencePosition = Math.max(sequencePosition, slotPosition(slot));
       });
     }
@@ -2404,7 +2424,7 @@
     }
 
     function updateRollingInfo() {
-      const text = "当前滚动计划：未完成任务会进入同科目队列依次后移；某章前置学习全部完成后，做题会自动提前到次日起最近的可用白天时段。英语优先级最低。";
+      const text = "当前滚动计划：未完成任务会进入同科目队列依次后移；提前完成会自动压紧后续计划，做题占最近白天，听课占最近晚上。英语优先级最低。";
       const node = document.getElementById("rollingInfo");
       if (node) node.textContent = text;
     }
