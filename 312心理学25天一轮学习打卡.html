@@ -1285,6 +1285,89 @@
       return dailySegmentEntries().find(entry => entry.id === segmentId) || null;
     }
 
+    const identityStreams = ["exp", "dev", "edu", "social", "measure"];
+
+    function entryTaskIdentity(entry) {
+      if (!entry || !identityStreams.includes(entry.stream) || !entry.links.length) return "";
+      return `course-v1:${entry.links.slice().sort().join("+")}`;
+    }
+
+    function identityLinks(identity) {
+      return String(identity || "").startsWith("course-v1:")
+        ? String(identity).slice("course-v1:".length).split("+").filter(Boolean)
+        : [];
+    }
+
+    function clearSegmentRecord(state, segmentId) {
+      delete state[segmentId];
+      delete state[`${segmentId}-actualTime`];
+      delete state[`${segmentId}-taskIdentity`];
+      if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
+    }
+
+    function repairLegacyExperiment7Collision(state) {
+      if (state.repairedExperiment7SlotCollision20260712) return false;
+      const entry = dailySegmentEntries().find(candidate => (
+        candidate.stream === "exp" &&
+        entryChapter(candidate) === 7 &&
+        courseTaskType(candidate) === "lecture"
+      ));
+      if (!entry) return false;
+      const actualTime = state[`${entry.id}-actualTime`] || "";
+      if (!actualTime.startsWith("2026-07-09T23:03")) return false;
+
+      clearSegmentRecord(state, entry.id);
+      entry.links.forEach(linkId => delete state[linkId]);
+      if (state.memoryLearningDrafts) delete state.memoryLearningDrafts["exp-7"];
+      state.repairedExperiment7SlotCollision20260712 = true;
+
+      const bridge = readMemoryBridge();
+      const learningDrafts = bridge.learningDrafts.filter(item => !(
+        item.sourceKey === "exp-7" && item.status !== "consumed"
+      ));
+      if (learningDrafts.length !== bridge.learningDrafts.length) {
+        bridge.learningDrafts = learningDrafts;
+        writeMemoryBridge(bridge);
+      }
+      return true;
+    }
+
+    function reconcileTaskIdentities(state) {
+      let changed = false;
+      const entries = dailySegmentEntries();
+      const currentByIdentity = new Map(entries.map(entry => [entryTaskIdentity(entry), entry]).filter(([identity]) => identity));
+
+      Object.keys(state)
+        .filter(key => isDailySegmentId(key) && Boolean(state[key]) && state[`${key}-taskIdentity`])
+        .forEach(segmentId => {
+          const savedIdentity = state[`${segmentId}-taskIdentity`];
+          const currentEntry = segmentEntryById(segmentId);
+          const currentIdentity = entryTaskIdentity(currentEntry);
+          if (savedIdentity === currentIdentity) return;
+
+          const targetEntry = currentByIdentity.get(savedIdentity);
+          if (targetEntry && targetEntry.id !== segmentId) {
+            state[targetEntry.id] = true;
+            if (!state[`${targetEntry.id}-actualTime`] && state[`${segmentId}-actualTime`]) {
+              state[`${targetEntry.id}-actualTime`] = state[`${segmentId}-actualTime`];
+            }
+            state[`${targetEntry.id}-taskIdentity`] = savedIdentity;
+          } else if (!targetEntry) {
+            identityLinks(savedIdentity).forEach(linkId => delete state[linkId]);
+          }
+          clearSegmentRecord(state, segmentId);
+          changed = true;
+        });
+
+      entries.forEach(entry => {
+        const identity = entryTaskIdentity(entry);
+        if (!identity || !state[entry.id] || state[`${entry.id}-taskIdentity`]) return;
+        state[`${entry.id}-taskIdentity`] = identity;
+        changed = true;
+      });
+      return changed;
+    }
+
     function segmentLinks(segmentId) {
       return segmentEntryById(segmentId)?.links || [];
     }
@@ -1318,6 +1401,8 @@
         if (!entry.links.length || !entry.links.every(linkId => Boolean(state[linkId]))) return;
         state[entry.id] = true;
         if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = nowLocalDateTime();
+        const identity = entryTaskIdentity(entry);
+        if (identity) state[`${entry.id}-taskIdentity`] = identity;
         if (allSegmentsDone(state, rowDayId)) {
           state[rowDayId] = true;
           state[`${rowDayId}-actual`] = latestSegmentDate(state, rowDayId);
@@ -1328,6 +1413,7 @@
 
       state[entry.id] = false;
       delete state[`${entry.id}-actualTime`];
+      delete state[`${entry.id}-taskIdentity`];
       state[rowDayId] = false;
       delete state[`${rowDayId}-actual`];
       delete state[`${rowDayId}-status`];
@@ -1355,6 +1441,8 @@
         if (entry.links.every(linkId => Boolean(state[linkId]))) {
           state[entry.id] = true;
           if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = nowLocalDateTime();
+          const identity = entryTaskIdentity(entry);
+          if (identity) state[`${entry.id}-taskIdentity`] = identity;
           changed = true;
         }
       });
@@ -2054,6 +2142,7 @@
 
     function migrateState(state) {
       let changed = false;
+      if (repairLegacyExperiment7Collision(state)) changed = true;
       if (!state.streamShiftDays && state.planShiftDays) {
         delete state.planShiftDays;
         changed = true;
@@ -2110,6 +2199,7 @@
           changed = true;
         }
       });
+      if (reconcileTaskIdentities(state)) changed = true;
       if (reconcileLinkedState(state)) changed = true;
       if (autoShiftOverduePlans(state)) changed = true;
       if (changed) writeState(state);
@@ -2334,6 +2424,7 @@
         state[rowId] = false;
         delete state[`${rowId}-actual`];
         delete state[`${segmentId}-actualTime`];
+        delete state[`${segmentId}-taskIdentity`];
         writeState(state);
         applyState();
         return;
@@ -2372,6 +2463,8 @@
         state.segmentPlanDates[entry.id] = actualDate;
       }
       state[`${segmentId}-actualTime`] = actualTime;
+      const taskIdentity = entryTaskIdentity(entry);
+      if (taskIdentity) state[`${segmentId}-taskIdentity`] = taskIdentity;
       if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
       syncChaptersFromDailySegment(state, segmentId, true);
       maybeOpenLearningDraftFromSegment(state, entry, actualDate);
