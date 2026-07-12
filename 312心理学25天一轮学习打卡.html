@@ -1676,7 +1676,7 @@
     }
 
     function courseKeepsFreeEveningAfterExercise(stream) {
-      return ["exp", "dev", "edu"].includes(stream);
+      return stream === "exp";
     }
 
     function scheduleCourseQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots, dayChapters, stream = "psych", minimumAfterPosition = -1) {
