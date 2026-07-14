@@ -562,6 +562,7 @@
     <section class="card">
       <h2>固定规则</h2>
       <ul class="rules">
+        <li>学习日以早上8:00为界：00:00-07:59完成的内容计入前一天，08:00起计入当天；完成时间仍保留真实时间。</li>
         <li>高强度日：周日、周二、周三。</li>
         <li>周四上午不排固定任务；周六晚上可顺延安排。</li>
         <li>普心和统计保留历史进度；每日复习用碎片化时间处理。</li>
@@ -900,7 +901,9 @@
     }
 
     function todayISO() {
-      return toISODate(new Date());
+      const now = new Date();
+      const calendarDate = toISODate(now);
+      return now.getHours() < 8 ? addDays(calendarDate, -1) : calendarDate;
     }
 
     function nowLocalDateTime() {
@@ -913,14 +916,22 @@
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
 
-    function dateFromDateTime(value) {
+    function calendarDateFromDateTime(value) {
       return value.slice(0, 10);
+    }
+
+    function dateFromDateTime(value) {
+      const calendarDate = calendarDateFromDateTime(value);
+      const time = value.split("T")[1] || "";
+      const hour = Number(time.slice(0, 2));
+      return !Number.isNaN(hour) && hour < 8 ? addDays(calendarDate, -1) : calendarDate;
     }
 
     function periodFromDateTime(value) {
       const time = value.split("T")[1] || "";
       const hour = Number(time.slice(0, 2));
       if (Number.isNaN(hour)) return "evening";
+      if (hour < 8) return "evening";
       if (hour < 12) return "morning";
       if (hour < 18) return "afternoon";
       return "evening";
@@ -1067,7 +1078,7 @@
           items.set(key, { ...(items.get(key) || item), ...item, completedAt: item.completedAt, completedDate: item.completedDate });
         });
       bridge.reviewCompletions
-        .filter(item => item.source === "psych312" && item.status !== "failed" && (item.completedDate || String(item.completedAt || "").slice(0, 10)) === today)
+        .filter(item => item.source === "psych312" && item.status !== "failed" && (item.completedDate || (item.completedAt ? dateFromDateTime(item.completedAt) : "")) === today)
         .forEach(item => {
           const key = bridgeReviewKey(item);
           items.set(key, { ...(items.get(key) || item), ...item, completedAt: item.completedAt, completedDate: item.completedDate });
@@ -2236,7 +2247,7 @@
 
     function validLocalDateTime(value) {
       if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false;
-      return validISODate(dateFromDateTime(value));
+      return validISODate(calendarDateFromDateTime(value));
     }
 
     function streamCompletionMessage(stream, delta) {
@@ -2307,7 +2318,7 @@
         return;
       }
       const completedDate = dateFromDateTime(actualTime);
-      if (!confirm(`这条复习会先记录在312页面，并在复习程序打开时同步为正式复习记录。\n\n复习内容：${review.title || "未命名复习"}\n完成时间：${formatDateTime(actualTime)}`)) {
+      if (!confirm(`这条复习会先记录在312页面，并在复习程序打开时同步为正式复习记录。\n\n复习内容：${review.title || "未命名复习"}\n完成时间：${formatDateTime(actualTime)}\n计入学习日：${completedDate}`)) {
         input.checked = false;
         return;
       }
@@ -2511,7 +2522,7 @@
       const actualDate = dateFromDateTime(actualTime);
       const delta = daysBetween(actualDate, plannedDate);
       const shiftText = streamCompletionMessage(stream, delta);
-      if (!confirm(`${shiftText}\n\n计划日期：${plannedDate}\n完成时间：${formatDateTime(actualTime)}`)) {
+      if (!confirm(`${shiftText}\n\n计划日期：${plannedDate}\n完成时间：${formatDateTime(actualTime)}\n计入学习日：${actualDate}`)) {
         state[segmentId] = false;
         writeState(state);
         applyState();
