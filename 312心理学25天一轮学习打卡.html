@@ -502,6 +502,7 @@
       </div>
       <div class="actions">
         <button id="todayBtn" class="primary" type="button">定位今天</button>
+        <button id="pendingDraftBtn" type="button" hidden>确认新增学习</button>
         <button id="exportBtn" type="button">导出进度</button>
         <button id="importBtn" type="button">导入进度</button>
         <button id="resetBtn" type="button">清空勾选</button>
@@ -2088,6 +2089,7 @@
 
     function applyState() {
       const state = migrateState(readState());
+      if (backfillDevelopment2LearningDraft(state)) writeState(state);
       renderDaily();
       document.querySelectorAll("input[type='checkbox'][data-id]").forEach(input => {
         input.checked = Boolean(state[input.dataset.id]);
@@ -2095,6 +2097,7 @@
       document.getElementById("review").value = localStorage.getItem(reviewKey) || "";
       updateTaskStyles();
       updateProgress();
+      updatePendingDraftButton();
     }
 
     function bindState() {
@@ -2357,25 +2360,35 @@
         return [1, 2, 3, 4].every(section => state[chapterLinkId("exp", 2, `第${section}节`)]);
       }
       if (entry.stream === "dev" && chapter === 2) {
-        return ["第1节听课", "第2节听课", "做题"]
+        return ["第1节听课", "第2节听课"]
           .every(task => state[chapterLinkId("dev", 2, task)]);
       }
       return true;
     }
 
-    function maybeOpenLearningDraftFromSegment(state, entry, actualDate) {
-      if (!entry || actualDate < todayISO()) return;
-      const draftKey = learningDraftKeyForEntry(entry);
-      if (!draftKey) return;
-      if (!learningDraftReadyForEntry(state, entry)) return;
-      state.memoryLearningDrafts = state.memoryLearningDrafts || {};
-      if (state.memoryLearningDrafts[draftKey]) return;
+    function openLearningDraft(draftId) {
+      const url = `${memoryReviewAppUrl}?from=312&draftId=${encodeURIComponent(draftId)}`;
+      const opened = window.open(url, "_blank", "noopener");
+      if (!opened) alert(`已生成复习程序草稿，但浏览器拦截了新标签。\n请手动打开：${url}`);
+    }
 
+    function createLearningDraft(state, entry, actualDate, shouldOpen = true) {
+      const draftKey = learningDraftKeyForEntry(entry);
+      if (!draftKey || !learningDraftReadyForEntry(state, entry)) return "";
+      state.memoryLearningDrafts = state.memoryLearningDrafts || {};
       const bridge = readMemoryBridge();
+      if (state.memoryLearningDrafts[draftKey]) {
+        const draftId = state.memoryLearningDrafts[draftKey];
+        const savedDraft = bridge.learningDrafts.find(item => item.id === draftId);
+        if (shouldOpen && savedDraft?.status === "pending") openLearningDraft(draftId);
+        return draftId;
+      }
+
       const existing = bridge.learningDrafts.find(item => item.sourceKey === draftKey && item.status !== "discarded");
       if (existing) {
         state.memoryLearningDrafts[draftKey] = existing.id;
-        return;
+        if (shouldOpen && existing.status === "pending") openLearningDraft(existing.id);
+        return existing.id;
       }
 
       const title = chapterTitleForEntry(entry);
@@ -2398,9 +2411,56 @@
       ];
       writeMemoryBridge(bridge);
       state.memoryLearningDrafts[draftKey] = draftId;
-      const url = `${memoryReviewAppUrl}?from=312&draftId=${encodeURIComponent(draftId)}`;
-      const opened = window.open(url, "_blank", "noopener");
-      if (!opened) alert(`已生成复习程序草稿，但浏览器拦截了新标签。\n请手动打开：${url}`);
+      if (shouldOpen) openLearningDraft(draftId);
+      return draftId;
+    }
+
+    function maybeOpenLearningDraftFromSegment(state, entry, actualDate) {
+      if (!entry || actualDate < todayISO()) return;
+      createLearningDraft(state, entry, actualDate, true);
+    }
+
+    function backfillDevelopment2LearningDraft(state) {
+      const entry = dailySegmentEntries().find(candidate => (
+        candidate.stream === "dev" &&
+        entryChapter(candidate) === 2 &&
+        candidate.links.includes(chapterLinkId("dev", 2, "第2节听课"))
+      ));
+      if (!entry || !learningDraftReadyForEntry(state, entry)) return false;
+      if (state.memoryLearningDrafts?.["dev-2"]) return false;
+
+      const lectureTimes = dailySegmentEntries()
+        .filter(candidate => (
+          candidate.stream === "dev" &&
+          entryChapter(candidate) === 2 &&
+          courseTaskType(candidate) === "lecture" &&
+          state[candidate.id] &&
+          state[`${candidate.id}-actualTime`]
+        ))
+        .map(candidate => state[`${candidate.id}-actualTime`])
+        .sort();
+      if (lectureTimes.length < 2) return false;
+      return Boolean(createLearningDraft(state, entry, dateFromDateTime(lectureTimes.at(-1)), false));
+    }
+
+    function pendingLearningDraft() {
+      return readMemoryBridge().learningDrafts
+        .filter(item => item.source === "psych312" && item.status === "pending")
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0] || null;
+    }
+
+    function updatePendingDraftButton() {
+      const button = document.getElementById("pendingDraftBtn");
+      if (!button) return;
+      const draft = pendingLearningDraft();
+      button.hidden = !draft;
+      button.dataset.draftId = draft?.id || "";
+      button.textContent = draft ? `确认新增学习：${draft.title}` : "确认新增学习";
+    }
+
+    function openPendingLearningDraft() {
+      const draftId = document.getElementById("pendingDraftBtn")?.dataset.draftId;
+      if (draftId) openLearningDraft(draftId);
     }
 
     function handleDailySegment(input) {
@@ -2640,6 +2700,7 @@
     applyState();
 
     document.getElementById("todayBtn").addEventListener("click", locateToday);
+    document.getElementById("pendingDraftBtn").addEventListener("click", openPendingLearningDraft);
     document.getElementById("exportBtn").addEventListener("click", exportProgress);
     document.getElementById("importBtn").addEventListener("click", importProgress);
     document.getElementById("resetBtn").addEventListener("click", resetProgress);
