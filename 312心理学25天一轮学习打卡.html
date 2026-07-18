@@ -1406,13 +1406,13 @@
       return !task.includes("英语1h");
     }
 
-    function setDailySegmentFromChapter(state, entry, checked) {
+    function setDailySegmentFromChapter(state, entry, checked, actualTime = "") {
       const rowDayId = rowDayIdForEntry(entry, state);
       if (checked) {
         if (!canChapterCompleteSegment(entry.task)) return;
         if (!entry.links.length || !entry.links.every(linkId => Boolean(state[linkId]))) return;
         state[entry.id] = true;
-        if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = nowLocalDateTime();
+        if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = actualTime || nowLocalDateTime();
         const identity = entryTaskIdentity(entry);
         if (identity) state[`${entry.id}-taskIdentity`] = identity;
         if (allSegmentsDone(state, rowDayId)) {
@@ -1431,10 +1431,10 @@
       delete state[`${rowDayId}-status`];
     }
 
-    function syncDailySegmentsFromChapter(state, chapterId, checked) {
-      dailySegmentEntries()
-        .filter(entry => entry.links.includes(chapterId))
-        .forEach(entry => setDailySegmentFromChapter(state, entry, checked));
+    function syncDailySegmentsFromChapter(state, chapterId, checked, actualTime = "") {
+      const entries = dailySegmentEntries().filter(entry => entry.links.includes(chapterId));
+      entries.forEach(entry => setDailySegmentFromChapter(state, entry, checked, actualTime));
+      return entries;
     }
 
     function reconcileLinkedState(state) {
@@ -2100,7 +2100,9 @@
 
     function applyState() {
       const state = migrateState(readState());
-      if (backfillDevelopment2LearningDraft(state)) writeState(state);
+      let backfilledDraft = backfillDevelopment2LearningDraft(state);
+      if (backfillTodayLearningDrafts(state)) backfilledDraft = true;
+      if (backfilledDraft) writeState(state);
       renderDaily();
       document.querySelectorAll("input[type='checkbox'][data-id]").forEach(input => {
         input.checked = Boolean(state[input.dataset.id]);
@@ -2121,6 +2123,10 @@
         if (input.matches("input[type='checkbox'][data-id]")) {
           if (isDailySegmentId(input.dataset.id)) {
             handleDailySegment(input);
+            return;
+          }
+          if (input.closest("[data-chapter-card]")) {
+            handleChapterSegment(input);
             return;
           }
           const state = readState();
@@ -2391,8 +2397,11 @@
       if (state.memoryLearningDrafts[draftKey]) {
         const draftId = state.memoryLearningDrafts[draftKey];
         const savedDraft = bridge.learningDrafts.find(item => item.id === draftId);
-        if (shouldOpen && savedDraft?.status === "pending") openLearningDraft(draftId);
-        return draftId;
+        if (savedDraft) {
+          if (shouldOpen && savedDraft.status === "pending") openLearningDraft(draftId);
+          return draftId;
+        }
+        delete state.memoryLearningDrafts[draftKey];
       }
 
       const existing = bridge.learningDrafts.find(item => item.sourceKey === draftKey && item.status !== "discarded");
@@ -2454,6 +2463,27 @@
       return Boolean(createLearningDraft(state, entry, dateFromDateTime(lectureTimes.at(-1)), false));
     }
 
+    function backfillTodayLearningDrafts(state) {
+      let changed = false;
+      const seen = new Set();
+      dailySegmentEntries()
+        .filter(entry => (
+          state[entry.id] &&
+          state[`${entry.id}-actualTime`] &&
+          dateFromDateTime(state[`${entry.id}-actualTime`]) === todayISO() &&
+          courseTaskType(entry) === "lecture" &&
+          learningDraftReadyForEntry(state, entry)
+        ))
+        .sort((a, b) => String(state[`${a.id}-actualTime`]).localeCompare(String(state[`${b.id}-actualTime`])))
+        .forEach(entry => {
+          const draftKey = learningDraftKeyForEntry(entry);
+          if (!draftKey || seen.has(draftKey) || state.memoryLearningDrafts?.[draftKey]) return;
+          seen.add(draftKey);
+          if (createLearningDraft(state, entry, dateFromDateTime(state[`${entry.id}-actualTime`]), false)) changed = true;
+        });
+      return changed;
+    }
+
     function pendingLearningDraft() {
       return readMemoryBridge().learningDrafts
         .filter(item => item.source === "psych312" && item.status === "pending")
@@ -2472,6 +2502,44 @@
     function openPendingLearningDraft() {
       const draftId = document.getElementById("pendingDraftBtn")?.dataset.draftId;
       if (draftId) openLearningDraft(draftId);
+    }
+
+    function handleChapterSegment(input) {
+      const chapterId = input.dataset.id;
+      const state = readState();
+
+      if (!input.checked) {
+        state[chapterId] = false;
+        syncDailySegmentsFromChapter(state, chapterId, false);
+        writeState(state);
+        applyState();
+        return;
+      }
+
+      const actualTime = prompt("确认这个章节任务的完成时间，可修改：", nowLocalDateTime());
+      if (actualTime === null) {
+        input.checked = false;
+        return;
+      }
+      if (!validLocalDateTime(actualTime)) {
+        alert("时间格式请用 YYYY-MM-DDTHH:mm，例如 2026-07-18T20:30。");
+        input.checked = false;
+        return;
+      }
+
+      const actualDate = dateFromDateTime(actualTime);
+      const taskName = input.closest("label")?.textContent?.trim() || "章节任务";
+      if (!confirm(`确认完成这个章节任务，并同步到上方每日计划。\n\n任务：${taskName}\n完成时间：${formatDateTime(actualTime)}\n计入学习日：${actualDate}`)) {
+        input.checked = false;
+        return;
+      }
+
+      state[chapterId] = true;
+      const linkedEntries = syncDailySegmentsFromChapter(state, chapterId, true, actualTime);
+      const completedEntry = linkedEntries.find(entry => state[entry.id] && learningDraftReadyForEntry(state, entry));
+      if (completedEntry) maybeOpenLearningDraftFromSegment(state, completedEntry, actualDate);
+      writeState(state);
+      applyState();
     }
 
     function handleDailySegment(input) {
