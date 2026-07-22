@@ -268,10 +268,6 @@
       color: #8a5a13;
     }
 
-    .day-done {
-      min-width: 190px;
-    }
-
     .segment-task {
       min-width: 170px;
     }
@@ -376,24 +372,6 @@
     .small {
       color: var(--muted);
       font-size: 13px;
-    }
-
-    .actual-date {
-      display: block;
-      margin: 4px 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .edit-date {
-      display: none;
-      margin-top: 4px;
-      padding: 5px 8px;
-      font-size: 13px;
-    }
-
-    .day-done.has-actual .edit-date {
-      display: inline-block;
     }
 
     .chapter-grid {
@@ -518,11 +496,6 @@
         <div class="progress"><div class="bar" id="totalBar"></div></div>
       </div>
       <div class="card metric">
-        <div class="label">每日闭环</div>
-        <div class="value" id="dailyValue">0/25</div>
-        <div class="progress"><div class="bar" id="dailyBar"></div></div>
-      </div>
-      <div class="card metric">
         <div class="label">普心</div>
         <div class="value" id="psychValue">0/0</div>
         <div class="progress"><div class="bar" id="psychBar"></div></div>
@@ -572,6 +545,7 @@
         <li>发展/教育：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>社会：晚上听课 -> 次日白天碎片做题 -> 当晚继续下一章，不另排看书。</li>
         <li>英语：每周日晚上做题1h；优先级最低，可与专业课听课并存，逾期直接跳过而不顺延。</li>
+        <li>每天不设闭环要求：任务按实际精力独立完成，可以提前多学，也可以少学并留出消化时间。</li>
         <li>新科目默认按“实验 -> 发展 -> 教育 -> 社会 -> 测量”串行；一旦实际提前启动后续科目，就按实际进度填入最近空位。</li>
         <li>逾期未完成会自动顺延；提前完成会让后续计划自动压紧，做题找最近白天，听课找最近晚上。</li>
       </ul>
@@ -590,7 +564,7 @@
         </div>
         <div class="debt-item">
           <strong>可以修改</strong>
-          <span class="small">完成后如果日期不对，点“修改日期”重新校准。</span>
+          <span class="small">每项完成时确认时间；过往完成项先解锁，再重新登记。</span>
         </div>
       </div>
       <p class="small" id="rollingInfo" style="margin:10px 0 0;"></p>
@@ -618,7 +592,6 @@
               <th>下午</th>
               <th>白天复习</th>
               <th>晚上</th>
-              <th>闭环记录</th>
             </tr>
           </thead>
           <tbody id="dailyBody"></tbody>
@@ -704,8 +677,8 @@
       ["6/18 周四", 13, "normal", "普通日", "上午不排固定任务", "第17章卡方做题", "第12章做题；听第13章学习"],
       ["6/19 周五", 14, "normal", "普通日", "第13章看书", "第18章二项式检验", "第13章做题；听第14章人生全程发展"],
       ["6/20 周六", 15, "rest", "周六晚可排", "第14章看书", "第19章方法选择看书", "缓冲：顺延时使用"],
-      ["6/21 周日", 16, "intense", "高强度", "第14章做题", "第19章方法选择练习", "普心一轮收口；英语1h"],
-      ["6/22 周一", 17, "normal", "普通日", "缓冲：统计顺延时使用", "第19章综合练习", "不排固定任务"],
+      ["6/21 周日", 16, "intense", "高强度", "第14章做题", "缓冲：统计顺延时使用", "普心一轮收口；英语1h"],
+      ["6/22 周一", 17, "normal", "普通日", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "不排固定任务"],
       ["6/23 周二", 18, "intense", "高强度", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "英语1h"],
       ["6/24 周三", 19, "intense", "高强度", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "英语1h"],
       ["6/25 周四", 20, "normal", "普通日", "上午不排固定任务", "缓冲：统计顺延时使用", "不排固定任务"],
@@ -781,8 +754,8 @@
       ["9/3 周四", 90, "normal", "普通日", "上午不排固定任务", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
       ["9/4 周五", 91, "normal", "普通日", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
       ["9/5 周六", 92, "rest", "周六晚可排", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
-      ["9/6 周日", 93, "intense", "高强度", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "英语做题1h"],
-      ["9/7 周一", 94, "normal", "普通日", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"]
+      ["9/6 周日", 93, "intense", "高强度", "缓冲：总复盘/顺延", "第19章方法选择练习", "英语做题1h"],
+      ["9/7 周一", 94, "normal", "普通日", "缓冲：总复盘/顺延", "第19章综合练习", "缓冲：总复盘/顺延"]
     ];
 
     const psych = [
@@ -807,7 +780,7 @@
       ["第16章 回归", "6/15-6/16"],
       ["第17章 卡方", "6/17-6/18"],
       ["第18章 二项式检验", "6/19"],
-      ["第19章 选择恰当统计方法", "6/20-6/22"]
+      ["第19章 选择恰当统计方法", "6/20看书；9/6-9/7最终总结练习"]
     ];
 
     const exp = [
@@ -1010,11 +983,6 @@
             ${segmentCell(id, day, "afternoon", "下午", afternoonTask)}
             ${reviewCell(day)}
             ${segmentCell(id, day, "evening", "晚上", eveningTask)}
-            <td class="day-done">
-              <span class="small" data-day-status="${id}">未闭环</span>
-              <span class="actual-date" data-actual="${id}"></span>
-              <button class="edit-date" type="button" data-edit-date="${id}">修改日期</button>
-            </td>
           </tr>
         `;
       }).join("");
@@ -1028,7 +996,7 @@
         return `
           <td class="segment-task">
             <span class="period-label">${label}<span class="stream-badge">${streamNames[stream]}</span></span>
-            <span class="segment-plan">不计入闭环</span>
+            <span class="segment-plan">空档</span>
             <span class="small">${task}</span>
           </td>
         `;
@@ -1037,7 +1005,7 @@
         return `
           <td class="segment-task">
             <span class="period-label">${label}<span class="stream-badge">${streamNames.fixed}</span></span>
-            <span class="segment-plan">不计入闭环</span>
+            <span class="segment-plan">空档</span>
             <span class="small">空档</span>
           </td>
         `;
@@ -1050,7 +1018,7 @@
             <span class="period-label">${index === 0 ? label : ""}<span class="stream-badge">${streamNames[entry.stream]}</span></span>
             <span class="segment-plan">计划：${formatPlanDate(plannedDate)}</span>
             <label class="task ${locked ? "locked" : ""}">
-              <input type="checkbox" data-id="${entry.id}" data-row-id="${dayId}" data-stream="${entry.stream}" ${locked ? "disabled" : ""}>
+              <input type="checkbox" data-id="${entry.id}" data-stream="${entry.stream}" ${locked ? "disabled" : ""}>
               <span>${entry.task}</span>
             </label>
             <span class="segment-actual" data-segment-actual="${entry.id}"></span>
@@ -1265,9 +1233,16 @@
       if (!chapters.length) return links;
 
       const tasks = [];
+      const isChapter19Summary = chapters.length === 1 && chapters[0] === 19;
       if (/看书|例题/.test(task)) addUnique(tasks, "看书");
-      if (/做题|练习|综合/.test(task)) addUnique(tasks, "做题");
-      if (/方法判断|整合|综合|方法选择练习/.test(task)) addUnique(tasks, "方法判断");
+      if (isChapter19Summary && task.includes("方法选择练习")) {
+        addUnique(tasks, "方法判断");
+      } else if (isChapter19Summary && task.includes("综合练习")) {
+        addUnique(tasks, "做题");
+      } else {
+        if (/做题|练习|综合/.test(task)) addUnique(tasks, "做题");
+        if (/方法判断|整合|综合|方法选择练习/.test(task)) addUnique(tasks, "方法判断");
+      }
       if (!tasks.length && /相关|二项式检验/.test(task)) addUnique(tasks, "看书");
 
       chapters.forEach(chapter => {
@@ -1420,7 +1395,6 @@
     }
 
     function setDailySegmentFromChapter(state, entry, checked, actualTime = "") {
-      const rowDayId = rowDayIdForEntry(entry, state);
       if (checked) {
         if (!canChapterCompleteSegment(entry.task)) return;
         if (!entry.links.length || !entry.links.every(linkId => Boolean(state[linkId]))) return;
@@ -1428,20 +1402,12 @@
         if (!state[`${entry.id}-actualTime`]) state[`${entry.id}-actualTime`] = actualTime || nowLocalDateTime();
         const identity = entryTaskIdentity(entry);
         if (identity) state[`${entry.id}-taskIdentity`] = identity;
-        if (allSegmentsDone(state, rowDayId)) {
-          state[rowDayId] = true;
-          state[`${rowDayId}-actual`] = latestSegmentDate(state, rowDayId);
-          state[`${rowDayId}-status`] = "完成";
-        }
         return;
       }
 
       state[entry.id] = false;
       delete state[`${entry.id}-actualTime`];
       delete state[`${entry.id}-taskIdentity`];
-      state[rowDayId] = false;
-      delete state[`${rowDayId}-actual`];
-      delete state[`${rowDayId}-status`];
     }
 
     function syncDailySegmentsFromChapter(state, chapterId, checked, actualTime = "") {
@@ -2086,27 +2052,6 @@
         const actualTime = state[`${node.dataset.segmentActual}-actualTime`];
         node.textContent = actualTime ? `完成：${formatDateTime(actualTime)}` : "";
       });
-      daily.forEach(([, day]) => {
-        const id = `daily-${day}`;
-        const statusNode = document.querySelector(`[data-day-status="${id}"]`);
-        if (statusNode) {
-          const segments = daySegments(id, state);
-          const doneCount = segments.filter(segmentId => Boolean(state[segmentId])).length;
-          statusNode.textContent = state[id] ? "已闭环" : `${doneCount}/${segments.length}`;
-        }
-      });
-      document.querySelectorAll("[data-actual]").forEach(node => {
-        const id = node.dataset.actual;
-        const actualDate = state[`${id}-actual`];
-        const cell = node.closest(".day-done");
-        if (actualDate) {
-          node.textContent = `实际完成：${actualDate}`;
-          cell?.classList.add("has-actual");
-        } else {
-          node.textContent = "";
-          cell?.classList.remove("has-actual");
-        }
-      });
       updateChapterDates(state);
       updateRollingInfo();
     }
@@ -2158,10 +2103,6 @@
           return;
         }
 
-        const editButton = event.target.closest("[data-edit-date]");
-        if (editButton) {
-          editDailyActualDate(editButton.dataset.editDate);
-        }
       });
 
       document.getElementById("review").addEventListener("input", event => {
@@ -2188,6 +2129,13 @@
       }
       if (state.segmentPlanDates) {
         delete state.segmentPlanDates;
+        changed = true;
+      }
+      if (!state.removedDailyClosure20260722) {
+        Object.keys(state)
+          .filter(key => /^daily-\d+(?:-(?:actual|status))?$/.test(key))
+          .forEach(key => delete state[key]);
+        state.removedDailyClosure20260722 = true;
         changed = true;
       }
       daily.forEach(([, day]) => {
@@ -2223,14 +2171,6 @@
           });
           changed = true;
         });
-        const segments = daySegments(id, state);
-        const hasAnySegment = segments.some(segmentId => Object.prototype.hasOwnProperty.call(state, segmentId));
-        if (state[id] && !hasAnySegment) {
-          segments.forEach(segmentId => {
-            state[segmentId] = true;
-          });
-          changed = true;
-        }
       });
       if (reconcileTaskIdentities(state)) changed = true;
       if (reconcileLinkedState(state)) changed = true;
@@ -2239,24 +2179,12 @@
       return state;
     }
 
-    function daySegments(dayId, state = readState()) {
-      const day = Number(dayId.replace("daily-", ""));
-      if (!daily.some(([, entryDay]) => entryDay === day)) return [];
-      return ["morning", "afternoon", "evening"]
-        .flatMap(period => visibleEntriesForCell(day, period, state).map(entry => entry.id));
-    }
-
     function isDailySegmentId(id) {
       return /^daily-\d+-(morning|afternoon|evening)(-\d+)?$/.test(id);
     }
 
     function dayIdFromSegment(segmentId) {
       return segmentId.match(/^(daily-\d+)-/)[1];
-    }
-
-    function allSegmentsDone(state, dayId) {
-      const segments = daySegments(dayId, state);
-      return segments.length > 0 && segments.every(segmentId => Boolean(state[segmentId]));
     }
 
     function validISODate(value) {
@@ -2567,21 +2495,12 @@
       const stream = input.dataset.stream || "fixed";
       const state = readState();
       const entry = segmentEntryById(segmentId);
-      const rowId = input.dataset.rowId || (entry ? rowDayIdForEntry(entry, state) : dayIdFromSegment(segmentId));
-      if (!input.checked && state[rowId]) {
-        if (!confirm("取消这个时段会取消这一天的闭环记录。计划日期不会自动回退，确定吗？")) {
-          input.checked = true;
-          return;
-        }
-      }
 
       state[segmentId] = input.checked;
 
       if (!input.checked) {
         if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
         syncChaptersFromDailySegment(state, segmentId, false);
-        state[rowId] = false;
-        delete state[`${rowId}-actual`];
         delete state[`${segmentId}-actualTime`];
         delete state[`${segmentId}-taskIdentity`];
         writeState(state);
@@ -2628,51 +2547,6 @@
       syncChaptersFromDailySegment(state, segmentId, true);
       maybeOpenLearningDraftFromSegment(state, entry, actualDate);
 
-      const finalRowId = entry ? rowDayIdForEntry(entry, state) : rowId;
-      if (finalRowId !== rowId) {
-        state[rowId] = false;
-        delete state[`${rowId}-actual`];
-        delete state[`${rowId}-status`];
-      }
-      if (allSegmentsDone(state, finalRowId)) {
-        state[finalRowId] = true;
-        state[`${finalRowId}-actual`] = latestSegmentDate(state, finalRowId);
-        state[`${finalRowId}-status`] = "完成";
-      }
-
-      writeState(state);
-      renderDaily();
-      applyState();
-    }
-
-    function latestSegmentDate(state, dayId) {
-      const times = daySegments(dayId, state)
-        .map(segmentId => state[`${segmentId}-actualTime`])
-        .filter(Boolean)
-        .sort();
-      return times.length ? dateFromDateTime(times[times.length - 1]) : todayISO();
-    }
-
-    function editDailyActualDate(id) {
-      const state = readState();
-      const oldDate = state[`${id}-actual`] || todayISO();
-      const actualDate = prompt("修改完成日期：", oldDate);
-      if (actualDate === null) return;
-      if (!validISODate(actualDate)) {
-        alert("日期格式请用 YYYY-MM-DD，例如 2026-06-07。");
-        return;
-      }
-
-      const delta = daysBetween(actualDate, oldDate);
-      const editMessage = delta < 0
-        ? `完成日期提前${Math.abs(delta)}天。这个修改只更新闭环日期，不额外调整普心/统计滚动。`
-        : delta > 0
-          ? `完成日期推后${delta}天。这个修改只更新闭环日期，不额外调整普心/统计滚动。`
-          : "完成日期没有变化。确认保存吗？";
-      if (!confirm(`${editMessage}\n\n原完成日期：${oldDate}\n新完成日期：${actualDate}`)) return;
-
-      state[`${id}-actual`] = actualDate;
-      state[id] = true;
       writeState(state);
       renderDaily();
       applyState();
@@ -2703,9 +2577,6 @@
       const [eduDone, eduTotal] = countChecked("input[data-id^='edu-']");
       const [socialDone, socialTotal] = countChecked("input[data-id^='social-']");
       const [measureDone, measureTotal] = countChecked("input[data-id^='measure-']");
-      const state = readState();
-      const dailyTotal = daily.length;
-      const dailyDone = daily.filter(([, day]) => Boolean(state[`daily-${day}`])).length;
 
       const ratio = (done, total) => total ? done / total : 0;
       const weightedScore =
@@ -2718,7 +2589,6 @@
       const weightedPercent = Math.round((weightedScore / 300) * 100);
       document.getElementById("totalValue").textContent = `${weightedPercent}%`;
       document.getElementById("totalBar").style.width = `${weightedPercent}%`;
-      setMetric("dailyValue", "dailyBar", dailyDone, dailyTotal, "");
       setMetric("psychValue", "psychBar", psychDone, psychTotal, "");
       setMetric("statValue", "statBar", statDone, statTotal, "");
       setMetric("expValue", "expBar", expDone, expTotal, "");
