@@ -2337,6 +2337,8 @@
       if (!subjectConfigs[entry.stream] || !chapter) return "";
       if (entry.stream === "english" || entry.stream === "fixed") return "";
       if (/复习|缓冲|总复盘|每日复习/.test(entry.task)) return "";
+      // 第5章后来拆成两次听课；使用完整学习版本，避免旧的单次听课草稿拦截最终确认。
+      if (entry.stream === "dev" && chapter === 5) return "dev-5-complete-v2";
       return `${entry.stream}-${chapter}`;
     }
 
