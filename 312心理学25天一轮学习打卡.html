@@ -643,6 +643,7 @@
 
   <script>
     const storageKey = "psych312-plan-202606";
+    const stateBackupKey = "psych312-plan-202606-backup";
     const reviewKey = "psych312-review-202606";
     const memoryBridgeKey = "psych312-memory-review-bridge-v1";
     const memoryReviewAppUrl = "https://roychenccecc.github.io/memory-review-app/";
@@ -677,7 +678,7 @@
       ["6/18 周四", 13, "normal", "普通日", "上午不排固定任务", "第17章卡方做题", "第12章做题；听第13章学习"],
       ["6/19 周五", 14, "normal", "普通日", "第13章看书", "第18章二项式检验", "第13章做题；听第14章人生全程发展"],
       ["6/20 周六", 15, "rest", "周六晚可排", "第14章看书", "第19章方法选择看书", "缓冲：顺延时使用"],
-      ["6/21 周日", 16, "intense", "高强度", "第14章做题", "缓冲：统计顺延时使用", "普心一轮收口；英语1h"],
+      ["6/21 周日", 16, "intense", "高强度", "第14章做题", "缓冲：统计顺延时使用", "英语1h"],
       ["6/22 周一", 17, "normal", "普通日", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "不排固定任务"],
       ["6/23 周二", 18, "intense", "高强度", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "英语1h"],
       ["6/24 周三", 19, "intense", "高强度", "缓冲：统计顺延时使用", "缓冲：统计顺延时使用", "英语1h"],
@@ -755,7 +756,7 @@
       ["9/4 周五", 91, "normal", "普通日", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
       ["9/5 周六", 92, "rest", "周六晚可排", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延", "缓冲：总复盘/顺延"],
       ["9/6 周日", 93, "intense", "高强度", "缓冲：总复盘/顺延", "第19章方法选择练习", "英语做题1h"],
-      ["9/7 周一", 94, "normal", "普通日", "缓冲：总复盘/顺延", "第19章综合练习", "缓冲：总复盘/顺延"]
+      ["9/7 周一", 94, "normal", "普通日", "缓冲：总复盘/顺延", "第19章综合练习", "普心一轮收口"]
     ];
 
     const psych = [
@@ -1303,6 +1304,24 @@
       delete state[`${segmentId}-actualTime`];
       delete state[`${segmentId}-taskIdentity`];
       if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
+    }
+
+    function moveSegmentRecord(state, fromId, toId) {
+      let changed = false;
+      ["", "-actualTime", "-taskIdentity"].forEach(suffix => {
+        const fromKey = `${fromId}${suffix}`;
+        const toKey = `${toId}${suffix}`;
+        if (!Object.prototype.hasOwnProperty.call(state, fromKey)) return;
+        if (!Object.prototype.hasOwnProperty.call(state, toKey)) state[toKey] = state[fromKey];
+        delete state[fromKey];
+        changed = true;
+      });
+      if (state.unlockedSegments?.[fromId]) {
+        state.unlockedSegments[toId] = true;
+        delete state.unlockedSegments[fromId];
+        changed = true;
+      }
+      return changed;
     }
 
     function repairLegacyExperiment7Collision(state) {
@@ -2039,7 +2058,10 @@
     }
 
     function writeState(state) {
-      localStorage.setItem(storageKey, JSON.stringify(state));
+      const serialized = JSON.stringify(state);
+      const previous = localStorage.getItem(storageKey);
+      if (previous && previous !== serialized) localStorage.setItem(stateBackupKey, previous);
+      localStorage.setItem(storageKey, serialized);
     }
 
     function updateTaskStyles() {
@@ -2129,6 +2151,12 @@
       }
       if (state.segmentPlanDates) {
         delete state.segmentPlanDates;
+        changed = true;
+      }
+      if (!state.movedPsychCloseout20260722) {
+        if (moveSegmentRecord(state, "daily-16-evening-0", "daily-94-evening")) changed = true;
+        if (moveSegmentRecord(state, "daily-16-evening-1", "daily-16-evening")) changed = true;
+        state.movedPsychCloseout20260722 = true;
         changed = true;
       }
       if (!state.removedDailyClosure20260722) {
