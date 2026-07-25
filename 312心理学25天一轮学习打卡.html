@@ -1403,6 +1403,26 @@
       return true;
     }
 
+    function repairExperiment5DuplicatedSecondLesson(state) {
+      if (state.repairedExperiment5DuplicatedSecondLesson20260725) return false;
+      const firstLink = chapterLinkId("exp", 5, "第1次听课");
+      const secondLink = chapterLinkId("exp", 5, "第2次听课");
+      const entries = dailySegmentEntries();
+      const firstEntry = entries.find(entry => entry.links.includes(firstLink));
+      const secondEntry = entries.find(entry => entry.links.includes(secondLink));
+
+      if (firstEntry && secondEntry && state[firstEntry.id] && state[secondEntry.id]) {
+        const firstTime = state[`${firstEntry.id}-actualTime`] || "";
+        const secondTime = state[`${secondEntry.id}-actualTime`] || "";
+        if (firstTime && firstTime === secondTime) {
+          clearSegmentRecord(state, secondEntry.id);
+          delete state[secondLink];
+        }
+      }
+      state.repairedExperiment5DuplicatedSecondLesson20260725 = true;
+      return true;
+    }
+
     function reconcileTaskIdentities(state) {
       let changed = false;
       const entries = dailySegmentEntries();
@@ -2254,6 +2274,7 @@
         });
       });
       if (repairExperiment5FirstLessonRecord(state)) changed = true;
+      if (repairExperiment5DuplicatedSecondLesson(state)) changed = true;
       if (reconcileTaskIdentities(state)) changed = true;
       if (reconcileLinkedState(state)) changed = true;
       if (autoShiftOverduePlans(state)) changed = true;
