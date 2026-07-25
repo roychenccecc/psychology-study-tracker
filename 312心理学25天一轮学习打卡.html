@@ -1423,6 +1423,31 @@
       return true;
     }
 
+    function repairExperiment5CancelledFirstLessonGhost(state) {
+      if (state.repairedExperiment5CancelledFirstLessonGhost20260725) return false;
+      const firstLink = chapterLinkId("exp", 5, "第1次听课");
+      const secondLink = chapterLinkId("exp", 5, "第2次听课");
+      const entries = dailySegmentEntries();
+      const firstEntry = entries.find(entry => entry.links.includes(firstLink));
+      const secondEntry = entries.find(entry => entry.links.includes(secondLink));
+
+      // The old combined evening record can recreate lesson 2 after lesson 1 is
+      // explicitly cancelled. This timestamp belonged to the migrated lesson 1.
+      if (
+        firstEntry &&
+        secondEntry &&
+        !state[firstEntry.id] &&
+        state[secondEntry.id] &&
+        state[`${secondEntry.id}-actualTime`] === "2026-07-18T21:39"
+      ) {
+        clearSegmentRecord(state, secondEntry.id);
+        delete state[secondLink];
+      }
+      clearSegmentRecord(state, "daily-44-evening");
+      state.repairedExperiment5CancelledFirstLessonGhost20260725 = true;
+      return true;
+    }
+
     function reconcileTaskIdentities(state) {
       let changed = false;
       const entries = dailySegmentEntries();
@@ -2270,11 +2295,13 @@
               state[`${newId}-actualTime`] = state[`${oldId}-actualTime`];
             }
           });
+          clearSegmentRecord(state, oldId);
           changed = true;
         });
       });
       if (repairExperiment5FirstLessonRecord(state)) changed = true;
       if (repairExperiment5DuplicatedSecondLesson(state)) changed = true;
+      if (repairExperiment5CancelledFirstLessonGhost(state)) changed = true;
       if (reconcileTaskIdentities(state)) changed = true;
       if (reconcileLinkedState(state)) changed = true;
       if (autoShiftOverduePlans(state)) changed = true;
@@ -2609,6 +2636,14 @@
       state[segmentId] = input.checked;
 
       if (!input.checked) {
+        const taskIdentity = entryTaskIdentity(entry);
+        if (taskIdentity) {
+          Object.keys(state)
+            .filter(key => key.endsWith("-taskIdentity") && state[key] === taskIdentity)
+            .map(key => key.slice(0, -"-taskIdentity".length))
+            .filter(id => id !== segmentId)
+            .forEach(id => clearSegmentRecord(state, id));
+        }
         if (state.unlockedSegments) delete state.unlockedSegments[segmentId];
         syncChaptersFromDailySegment(state, segmentId, false);
         delete state[`${segmentId}-actualTime`];
