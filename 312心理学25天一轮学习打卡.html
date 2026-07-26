@@ -764,10 +764,12 @@
       const day = entry[1];
       if (day < dailyEnglishStartDay) return;
       const eveningTask = entry[6];
-      const eveningStudyTasks = isNonTaskSegment(eveningTask)
-        ? []
-        : splitTasks(eveningTask).filter(task => !isEnglishTask(task));
-      entry[6] = [...eveningStudyTasks, "英语1h"].join("；");
+      const existingTasks = isNonTaskSegment(eveningTask) ? [] : splitTasks(eveningTask);
+      const eveningStudyTasks = existingTasks.filter(task => !isEnglishTask(task));
+      const retainedHistoricalEnglish = day === dailyEnglishStartDay
+        ? existingTasks.filter(task => isEnglishTask(task))
+        : [];
+      entry[6] = [...eveningStudyTasks, ...retainedHistoricalEnglish, "每日英语1h"].join("；");
     });
 
     const psych = [
@@ -1118,7 +1120,8 @@
       return task.split("；").map(item => item.trim()).filter(Boolean);
     }
 
-    function segmentTaskId(dayId, period, index, total) {
+    function segmentTaskId(dayId, period, index, total, task = "") {
+      if (task === "每日英语1h") return `${dayId}-${period}-english-daily`;
       return total === 1 ? `${dayId}-${period}` : `${dayId}-${period}-${index}`;
     }
 
@@ -1147,7 +1150,7 @@
     }
 
     function isEnglishTask(task) {
-      return /^英语(?:做题)?1h$/.test(task.trim());
+      return /^(?:每日)?英语(?:做题)?1h$/.test(task.trim());
     }
 
     function segmentStream(period, task) {
@@ -1282,7 +1285,7 @@
           return tasks.map((item, index) => {
             const stream = segmentStream(period, item);
             return {
-              id: segmentTaskId(dayId, period, index, tasks.length),
+              id: segmentTaskId(dayId, period, index, tasks.length, item),
               baseId: `${dayId}-${period}`,
               dayId,
               day,
@@ -2284,7 +2287,7 @@
             ? tasks
               .map((_, index) => index)
               .filter(index => {
-                const candidateId = segmentTaskId(id, period, index, tasks.length);
+                const candidateId = segmentTaskId(id, period, index, tasks.length, tasks[index]);
                 return entryTaskIdentity(segmentEntryById(candidateId)) === oldIdentity;
               })
             : [];
@@ -2292,7 +2295,7 @@
             ? matchingIndexes
             : tasks.map((_, index) => index);
           indexesToMigrate.forEach(index => {
-            const newId = segmentTaskId(id, period, index, tasks.length);
+            const newId = segmentTaskId(id, period, index, tasks.length, tasks[index]);
             state[newId] = true;
             if (state[`${oldId}-actualTime`] && !state[`${newId}-actualTime`]) {
               state[`${newId}-actualTime`] = state[`${oldId}-actualTime`];
@@ -2313,7 +2316,7 @@
     }
 
     function isDailySegmentId(id) {
-      return /^daily-\d+-(morning|afternoon|evening)(-\d+)?$/.test(id);
+      return /^daily-\d+-(morning|afternoon|evening)(?:-\d+|-english-daily)?$/.test(id);
     }
 
     function dayIdFromSegment(segmentId) {
