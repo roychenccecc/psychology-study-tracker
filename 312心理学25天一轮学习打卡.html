@@ -544,7 +544,7 @@
         <li>实验：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>发展/教育：晚上听课 -> 次日白天碎片做题，不另排看书。</li>
         <li>社会：晚上听课 -> 次日白天碎片做题 -> 当晚继续下一章，不另排看书。</li>
-        <li>英语：每周日晚上做题1h；优先级最低，可与专业课听课并存，逾期直接跳过而不顺延。</li>
+        <li>英语：从7月26日起每天晚上1h；独立打卡、优先级最低，可与专业课并存，逾期直接跳过而不顺延。</li>
         <li>每天不设闭环要求：任务按实际精力独立完成，可以提前多学，也可以少学并留出消化时间。</li>
         <li>新科目默认按“实验 -> 发展 -> 教育 -> 社会 -> 测量”串行；一旦实际提前启动后续科目，就按实际进度填入最近空位。</li>
         <li>逾期未完成会自动顺延；提前完成会让后续计划自动压紧，做题找最近白天，听课找最近晚上。</li>
@@ -758,6 +758,17 @@
       ["9/6 周日", 93, "intense", "高强度", "缓冲：总复盘/顺延", "第19章方法选择练习", "英语做题1h"],
       ["9/7 周一", 94, "normal", "普通日", "缓冲：总复盘/顺延", "第19章综合练习", "普心一轮收口"]
     ];
+
+    const dailyEnglishStartDay = 51;
+    daily.forEach(entry => {
+      const day = entry[1];
+      if (day < dailyEnglishStartDay) return;
+      const eveningTask = entry[6];
+      const eveningStudyTasks = isNonTaskSegment(eveningTask)
+        ? []
+        : splitTasks(eveningTask).filter(task => !isEnglishTask(task));
+      entry[6] = [...eveningStudyTasks, "英语1h"].join("；");
+    });
 
     const psych = [
       ["第4章 知觉", "6/5听课，6/6-6/7闭环"],
@@ -1944,37 +1955,17 @@
 
     function scheduleEnglishQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots) {
       const tasks = entries.filter(entry => entry.stream === "english").sort(entrySort);
-      const occupiedEnglishSlots = new Set();
 
       tasks.forEach(entry => {
         const actualTime = state[`${entry.id}-actualTime`];
         if (state[entry.id] && actualTime) {
           scheduleCompletedEntry(schedule, entry, state, occupiedStudySlots, occupiedEveningSlots);
-          occupiedEnglishSlots.add(slotKey(schedule[entry.id]));
           return;
         }
 
         if (daysBetween(today, baseDateForDay(entry.day)) > 0) return;
-
-        const originPosition = slotPosition({ day: entry.day, period: entry.period });
-        const candidates = [];
-        daily.forEach(([, day]) => {
-          ["evening"].forEach(period => {
-            const position = (day - 1) * 3 + periodOrder(period);
-            if (position < originPosition) return;
-            if (daysBetween(today, baseDateForDay(day)) > 0) return;
-            if (!canUseOverflowSlot("english", day, period)) return;
-            const slot = { day, period };
-            if (occupiedStudySlots.has(slotKey(slot))) return;
-            if (occupiedEveningSlots.has(slotKey(slot)) && !occupiedLectureSlots.has(slotKey(slot))) return;
-            if (occupiedEnglishSlots.has(slotKey(slot))) return;
-            candidates.push(slot);
-          });
-        });
-
-        const slot = candidates.sort((a, b) => slotPosition(a) - slotPosition(b))[0] || null;
+        const slot = { day: entry.day, period: "evening" };
         scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots);
-        if (slot) occupiedEnglishSlots.add(slotKey(slot));
       });
     }
 
@@ -2288,7 +2279,19 @@
             changed = true;
             return;
           }
-          tasks.forEach((_, index) => {
+          const oldIdentity = state[`${oldId}-taskIdentity`] || "";
+          const matchingIndexes = oldIdentity
+            ? tasks
+              .map((_, index) => index)
+              .filter(index => {
+                const candidateId = segmentTaskId(id, period, index, tasks.length);
+                return entryTaskIdentity(segmentEntryById(candidateId)) === oldIdentity;
+              })
+            : [];
+          const indexesToMigrate = matchingIndexes.length
+            ? matchingIndexes
+            : tasks.map((_, index) => index);
+          indexesToMigrate.forEach(index => {
             const newId = segmentTaskId(id, period, index, tasks.length);
             state[newId] = true;
             if (state[`${oldId}-actualTime`] && !state[`${newId}-actualTime`]) {
@@ -2698,7 +2701,7 @@
     }
 
     function updateRollingInfo() {
-      const text = "当前滚动计划：未完成任务会进入同科目队列依次后移；提前完成会自动压紧后续计划。已经实际启动的后续科目会解除阶段锁，做题占最近白天，听课占最近晚上。英语优先级最低。";
+      const text = "当前滚动计划：未完成任务会进入同科目队列依次后移；提前完成会自动压紧后续计划。已经实际启动的后续科目会解除阶段锁，做题占最近白天，听课占最近晚上。英语从7月26日起每天晚上独立安排，逾期不顺延。";
       const node = document.getElementById("rollingInfo");
       if (node) node.textContent = text;
     }
