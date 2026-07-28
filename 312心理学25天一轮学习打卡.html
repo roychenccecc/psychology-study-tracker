@@ -721,9 +721,9 @@
       ["7/31 周五", 56, "normal", "普通日", "缓冲：每日复习/写题", "白天碎片：发展第4章做题", "缓冲：每日复习/顺延"],
       ["8/1 周六", 57, "rest", "周六晚可排", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "发展第5章第1次听课"],
       ["8/2 周日", 58, "intense", "高强度", "缓冲：每日复习/写题", "缓冲：每日复习/顺延", "发展第5章第2次听课；英语做题1h"],
-      ["8/3 周一", 59, "normal", "普通日", "缓冲：每日复习/顺延", "白天碎片：发展第5章做题", "发展第6章听课"],
-      ["8/4 周二", 60, "intense", "高强度", "缓冲：每日复习/写题", "白天碎片：发展第6章做题", "缓冲：每日复习/顺延"],
-      ["8/5 周三", 61, "intense", "高强度", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "发展第7章听课"],
+      ["8/3 周一", 59, "normal", "普通日", "缓冲：每日复习/顺延", "白天碎片：发展第5章做题", "发展第6章第1次听课"],
+      ["8/4 周二", 60, "intense", "高强度", "缓冲：每日复习/写题", "缓冲：每日复习/顺延", "发展第6章第2次听课"],
+      ["8/5 周三", 61, "intense", "高强度", "缓冲：每日复习/顺延", "白天碎片：发展第6章做题", "发展第7章听课"],
       ["8/6 周四", 62, "normal", "普通日", "上午不排固定任务", "白天碎片：发展第7章做题", "缓冲：每日复习/顺延"],
       ["8/7 周五", 63, "normal", "普通日", "缓冲：每日复习/顺延", "缓冲：每日复习/顺延", "发展第8章听课"],
       ["8/8 周六", 64, "rest", "周六晚可排", "缓冲：每日复习/写题", "白天碎片：发展第8章做题", "缓冲：顺延时使用"],
@@ -811,7 +811,7 @@
       ["发展第3章", "7/28听课，7/29做题"],
       ["发展第4章", "7/30听课，7/31做题"],
       ["发展第5章", "8/1-8/3分两次听课，听完后统一做题", ["第1次听课", "第2次听课", "做题"]],
-      ["发展第6章", "8/3听课，8/4做题"],
+      ["发展第6章", "8/3-8/4分两次听课，8/5做题", ["第1次听课", "第2次听课", "做题"]],
       ["发展第7章", "8/5听课，8/6做题"],
       ["发展第8章", "8/7听课，8/8做题"],
       ["发展第9章", "8/9听课，8/10做题"]
@@ -1209,6 +1209,10 @@
         const section = task.match(/第5章第(\d+)次听课/);
         if (section && baseTask === "听课") return `第${section[1]}次听课`;
       }
+      if (stream === "dev" && chapter === 6) {
+        const section = task.match(/第6章第(\d+)次听课/);
+        if (section && baseTask === "听课") return `第${section[1]}次听课`;
+      }
       return baseTask;
     }
 
@@ -1391,6 +1395,30 @@
         changed = true;
       }
       state.migratedExperiment5ThreeLectures20260725 = true;
+      return true;
+    }
+
+    function migrateDevelopment6TwoLectures(state) {
+      if (state.migratedDevelopment6TwoLectures20260728) return false;
+      const oldLink = chapterLinkId("dev", 6, "听课");
+      const firstLink = chapterLinkId("dev", 6, "第1次听课");
+      const oldIdentity = `course-v1:${oldLink}`;
+      const firstIdentity = `course-v1:${firstLink}`;
+
+      Object.keys(state)
+        .filter(key => (
+          isDailySegmentId(key) &&
+          Boolean(state[key]) &&
+          state[`${key}-taskIdentity`] === oldIdentity
+        ))
+        .forEach(segmentId => {
+          state[`${segmentId}-taskIdentity`] = firstIdentity;
+        });
+      if (state[oldLink]) {
+        state[firstLink] = true;
+        delete state[oldLink];
+      }
+      state.migratedDevelopment6TwoLectures20260728 = true;
       return true;
     }
 
@@ -2229,6 +2257,7 @@
       let changed = false;
       if (repairLegacyExperiment7Collision(state)) changed = true;
       if (migrateExperiment5ThreeLectures(state)) changed = true;
+      if (migrateDevelopment6TwoLectures(state)) changed = true;
       if (!state.streamShiftDays && state.planShiftDays) {
         delete state.planShiftDays;
         changed = true;
@@ -2446,6 +2475,7 @@
       if (entry.stream === "exp" && chapter === 5) return "exp-5-complete-v3";
       // 第5章后来拆成两次听课；使用完整学习版本，避免旧的单次听课草稿拦截最终确认。
       if (entry.stream === "dev" && chapter === 5) return "dev-5-complete-v2";
+      if (entry.stream === "dev" && chapter === 6) return "dev-6-complete-v2";
       return `${entry.stream}-${chapter}`;
     }
 
@@ -2468,6 +2498,10 @@
       if (entry.stream === "dev" && chapter === 5) {
         return ["第1次听课", "第2次听课"]
           .every(task => state[chapterLinkId("dev", 5, task)]);
+      }
+      if (entry.stream === "dev" && chapter === 6) {
+        return ["第1次听课", "第2次听课"]
+          .every(task => state[chapterLinkId("dev", 6, task)]);
       }
       return true;
     }
