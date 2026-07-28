@@ -1399,7 +1399,7 @@
     }
 
     function migrateDevelopment6TwoLectures(state) {
-      if (state.migratedDevelopment6TwoLectures20260728) return false;
+      if (state.migratedDevelopment6TwoLecturesAndDraft20260728) return false;
       const oldLink = chapterLinkId("dev", 6, "听课");
       const firstLink = chapterLinkId("dev", 6, "第1次听课");
       const oldIdentity = `course-v1:${oldLink}`;
@@ -1418,7 +1418,18 @@
         state[firstLink] = true;
         delete state[oldLink];
       }
-      state.migratedDevelopment6TwoLectures20260728 = true;
+      if (state.memoryLearningDrafts?.["dev-6"]) {
+        delete state.memoryLearningDrafts["dev-6"];
+      }
+      const bridge = readMemoryBridge();
+      const learningDrafts = bridge.learningDrafts.filter(item => !(
+        item.sourceKey === "dev-6" && item.status === "pending"
+      ));
+      if (learningDrafts.length !== bridge.learningDrafts.length) {
+        bridge.learningDrafts = learningDrafts;
+        writeMemoryBridge(bridge);
+      }
+      state.migratedDevelopment6TwoLecturesAndDraft20260728 = true;
       return true;
     }
 
