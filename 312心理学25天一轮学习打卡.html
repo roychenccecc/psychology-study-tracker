@@ -649,6 +649,7 @@
     const memoryReviewAppUrl = "https://roychenccecc.github.io/memory-review-app/";
     const baseStartDate = "2026-06-06";
     const extensionStartDate = "2026-07-08";
+    const dailyPoliticsStartDate = "2026-08-27";
     const weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
     const streamNames = {
       psych: "普心",
@@ -659,6 +660,7 @@
       social: "社会",
       measure: "测量",
       english: "英语",
+      politics: "政治",
       fixed: "固定"
     };
 
@@ -1125,6 +1127,7 @@
 
     function segmentTaskId(dayId, period, index, total, task = "") {
       if (task === "每日英语1h") return `${dayId}-${period}-english-daily`;
+      if (task === "每日政治复习1h") return `${dayId}-${period}-politics-daily`;
       return total === 1 ? `${dayId}-${period}` : `${dayId}-${period}-${index}`;
     }
 
@@ -1158,6 +1161,7 @@
 
     function segmentStream(period, task) {
       if (isEnglishTask(task)) return "english";
+      if (task === "每日政治复习1h") return "politics";
       if (task.includes("上午不排固定任务") || task.includes("周六晚休") || task.includes("普心已完成") || task.includes("不排普心") || task.includes("不排固定任务") || task.includes("缓冲：")) return "fixed";
       const explicit = explicitSubjectStream(task);
       if (explicit) return explicit;
@@ -1287,7 +1291,7 @@
       if (dailySegmentEntriesCache) return dailySegmentEntriesCache;
       dailySegmentEntriesCache = daily.flatMap(([, day, , , morningTask, afternoonTask, eveningTask]) => {
         const dayId = `daily-${day}`;
-        return [
+        const entries = [
           ["morning", morningTask],
           ["afternoon", afternoonTask],
           ["evening", eveningTask]
@@ -1307,6 +1311,21 @@
             };
           });
         });
+        // Keep existing task IDs unchanged when adding the daily politics check-in.
+        if (baseDateForDay(day) >= dailyPoliticsStartDate) {
+          const task = "每日政治复习1h";
+          entries.push({
+            id: segmentTaskId(dayId, "afternoon", 0, 1, task),
+            baseId: `${dayId}-afternoon`,
+            dayId,
+            day,
+            period: "afternoon",
+            stream: "politics",
+            task,
+            links: []
+          });
+        }
+        return entries;
       });
       return dailySegmentEntriesCache;
     }
@@ -2057,8 +2076,8 @@
       });
     }
 
-    function scheduleEnglishQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots) {
-      const tasks = entries.filter(entry => entry.stream === "english").sort(entrySort);
+    function scheduleDailyRoutineQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, stream) {
+      const tasks = entries.filter(entry => entry.stream === stream).sort(entrySort);
 
       tasks.forEach(entry => {
         const actualTime = state[`${entry.id}-actualTime`];
@@ -2068,7 +2087,7 @@
         }
 
         if (daysBetween(today, baseDateForDay(entry.day)) > 0) return;
-        const slot = { day: entry.day, period: "evening" };
+        const slot = { day: entry.day, period: entry.period };
         scheduleEntryAtSlot(schedule, entry, slot, occupiedStudySlots, occupiedEveningSlots);
       });
     }
@@ -2097,7 +2116,8 @@
           .map(entry => scheduledPosition(schedule[entry.id]));
         phasePosition = Math.max(before, ...streamPositions);
       });
-      scheduleEnglishQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, occupiedLectureSlots);
+      scheduleDailyRoutineQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, "english");
+      scheduleDailyRoutineQueue(schedule, entries, state, today, occupiedStudySlots, occupiedEveningSlots, "politics");
 
       return schedule;
     }
@@ -2419,7 +2439,7 @@
     }
 
     function isDailySegmentId(id) {
-      return /^daily-\d+-(morning|afternoon|evening)(?:-\d+|-english-daily)?$/.test(id);
+      return /^daily-\d+-(morning|afternoon|evening)(?:-\d+|-(?:english|politics)-daily)?$/.test(id);
     }
 
     function dayIdFromSegment(segmentId) {
