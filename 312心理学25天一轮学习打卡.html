@@ -650,6 +650,8 @@
     const baseStartDate = "2026-06-06";
     const extensionStartDate = "2026-07-08";
     const dailyPoliticsStartDate = "2026-08-27";
+    const structuredPoliticsStartDate = "2026-09-01";
+    const structuredPoliticsEndDate = "2026-10-15";
     const weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
     const streamNames = {
       psych: "普心",
@@ -760,6 +762,33 @@
       ["9/6 周日", 93, "intense", "高强度", "缓冲：完成后继续每日复习", "缓冲：完成后继续每日复习", "缓冲：完成后继续每日复习"],
       ["9/7 周一", 94, "normal", "普通日", "缓冲：完成后继续每日复习", "缓冲：完成后继续每日复习", "缓冲：完成后继续每日复习"]
     ];
+
+    function appendDailyRowsThrough(endDate) {
+      let day = daily.at(-1)[1] + 1;
+      let date = addDays(baseDateForDay(day - 1), 1);
+      while (date <= endDate) {
+        const weekday = parseLocalDate(date).getDay();
+        const [kind, type] = weekday === 6
+          ? ["rest", "周六晚可排"]
+          : [0, 2, 3].includes(weekday)
+            ? ["intense", "高强度"]
+            : ["normal", "普通日"];
+        const morning = weekday === 4 ? "上午不排固定任务" : "缓冲：每日复习/顺延";
+        daily.push([
+          formatPlanDate(date),
+          day,
+          kind,
+          type,
+          morning,
+          "缓冲：每日复习/顺延",
+          "缓冲：每日复习/顺延"
+        ]);
+        day += 1;
+        date = addDays(date, 1);
+      }
+    }
+
+    appendDailyRowsThrough(structuredPoliticsEndDate);
 
     const dailyEnglishStartDay = 51;
     daily.forEach(entry => {
@@ -1311,8 +1340,9 @@
             };
           });
         });
-        // Keep existing task IDs unchanged when adding the daily politics check-in.
-        if (baseDateForDay(day) >= dailyPoliticsStartDate) {
+        const planDate = baseDateForDay(day);
+        // Keep the original August politics check-ins and all existing task IDs unchanged.
+        if (planDate >= dailyPoliticsStartDate && planDate < structuredPoliticsStartDate) {
           const task = "每日政治复习1h";
           entries.push({
             id: segmentTaskId(dayId, "afternoon", 0, 1, task),
@@ -1325,9 +1355,74 @@
             links: []
           });
         }
+        politicsTasksForDate(planDate).forEach((task, index) => {
+          const period = task.period;
+          entries.push({
+            id: `${dayId}-${period}-politics-${task.id}`,
+            baseId: `${dayId}-${period}`,
+            dayId,
+            day,
+            period,
+            stream: "politics",
+            task: task.label,
+            links: [],
+            routineOrder: index
+          });
+        });
         return entries;
       });
       return dailySegmentEntriesCache;
+    }
+
+    function politicsTasksForDate(planDate) {
+      if (planDate < structuredPoliticsStartDate || planDate > structuredPoliticsEndDate) return [];
+      const phases = [
+        {
+          start: "2026-09-01",
+          end: "2026-09-14",
+          subject: "马原",
+          lessons: 14,
+          organize: "当天原理框架15min",
+          questions: "肖1000马原对应题"
+        },
+        {
+          start: "2026-09-15",
+          end: "2026-09-24",
+          subject: "史纲",
+          lessons: 10,
+          organize: "时间轴/事件框架15min",
+          questions: "肖1000史纲对应题"
+        },
+        {
+          start: "2026-09-25",
+          end: "2026-09-30",
+          subject: "毛中特",
+          lessons: 6,
+          organize: "理论框架15min",
+          questions: "肖1000毛中特对应题"
+        },
+        {
+          start: "2026-10-01",
+          end: "2026-10-08",
+          subject: "思修",
+          lessons: 8,
+          organize: "章节框架15min",
+          questions: "肖1000思修对应题"
+        }
+      ];
+      const phase = phases.find(item => planDate >= item.start && planDate <= item.end);
+      const dayInPhase = phase ? daysBetween(planDate, phase.start) + 1 : daysBetween(planDate, "2026-10-09") + 1;
+      const main = phase
+        ? `${phase.subject}第${dayInPhase}/${phase.lessons}节`
+        : `四科一轮复盘第${dayInPhase}/7天`;
+      const organize = phase ? phase.organize : "补框架、查漏洞";
+      const questions = phase ? phase.questions : "肖1000错题/标记题";
+      return [
+        { id: "xi", period: "morning", label: "习思想15-20min" },
+        { id: "main", period: "morning", label: main },
+        { id: "organize", period: "morning", label: organize },
+        { id: "questions", period: "evening", label: questions }
+      ];
     }
 
     function segmentEntryById(segmentId) {
@@ -1671,7 +1766,13 @@
     }
 
     function entrySort(a, b) {
-      return a.day - b.day || periodOrder(a.period) - periodOrder(b.period) || a.id.localeCompare(b.id);
+      const positionDiff = a.day - b.day || periodOrder(a.period) - periodOrder(b.period);
+      if (positionDiff) return positionDiff;
+      if (a.stream === "politics" && b.stream === "politics") {
+        const routineDiff = (a.routineOrder ?? 99) - (b.routineOrder ?? 99);
+        if (routineDiff) return routineDiff;
+      }
+      return a.id.localeCompare(b.id);
     }
 
     function periodOrder(period) {
@@ -2374,6 +2475,15 @@
         state.movedPsychCloseout20260722 = true;
         changed = true;
       }
+      if (!state.migratedStructuredPolitics20260901) {
+        if (moveSegmentRecord(
+          state,
+          "daily-88-afternoon-politics-daily",
+          "daily-88-morning-politics-main"
+        )) changed = true;
+        state.migratedStructuredPolitics20260901 = true;
+        changed = true;
+      }
       if (!state.removedDailyClosure20260722) {
         Object.keys(state)
           .filter(key => /^daily-\d+(?:-(?:actual|status))?$/.test(key))
@@ -2439,7 +2549,7 @@
     }
 
     function isDailySegmentId(id) {
-      return /^daily-\d+-(morning|afternoon|evening)(?:-\d+|-(?:english|politics)-daily)?$/.test(id);
+      return /^daily-\d+-(morning|afternoon|evening)(?:-\d+|-english-daily|-politics-(?:daily|xi|main|organize|questions))?$/.test(id);
     }
 
     function dayIdFromSegment(segmentId) {
