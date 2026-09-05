@@ -536,7 +536,7 @@
     <section class="card">
       <h2>固定规则</h2>
       <ul class="rules">
-        <li>学习日以早上8:00为界：00:00-07:59完成的内容计入前一天，08:00起计入当天；完成时间仍保留真实时间。</li>
+        <li>学习日以早上5:00为界：00:00-04:59完成的内容计入前一天，05:00起计入当天；完成时间仍保留真实时间。</li>
         <li>高强度日：周日、周二、周三。</li>
         <li>周四上午不排固定任务；周六晚上可顺延安排。</li>
         <li>普心和统计保留历史进度；每日复习用碎片化时间处理。</li>
@@ -649,6 +649,7 @@
     const memoryBridgeKey = "psych312-memory-review-bridge-v1";
     const memoryReviewAppUrl = "https://roychenccecc.github.io/memory-review-app/";
     const baseStartDate = "2026-06-06";
+    const studyDayStartHour = 5;
     const extensionStartDate = "2026-07-08";
     const dailyPoliticsStartDate = "2026-08-27";
     const structuredPoliticsStartDate = "2026-09-01";
@@ -926,7 +927,7 @@
     function todayISO() {
       const now = new Date();
       const calendarDate = toISODate(now);
-      return now.getHours() < 8 ? addDays(calendarDate, -1) : calendarDate;
+      return now.getHours() < studyDayStartHour ? addDays(calendarDate, -1) : calendarDate;
     }
 
     function nowLocalDateTime() {
@@ -947,14 +948,14 @@
       const calendarDate = calendarDateFromDateTime(value);
       const time = value.split("T")[1] || "";
       const hour = Number(time.slice(0, 2));
-      return !Number.isNaN(hour) && hour < 8 ? addDays(calendarDate, -1) : calendarDate;
+      return !Number.isNaN(hour) && hour < studyDayStartHour ? addDays(calendarDate, -1) : calendarDate;
     }
 
     function periodFromDateTime(value) {
       const time = value.split("T")[1] || "";
       const hour = Number(time.slice(0, 2));
       if (Number.isNaN(hour)) return "evening";
-      if (hour < 8) return "evening";
+      if (hour < studyDayStartHour) return "evening";
       if (hour < 12) return "morning";
       if (hour < 18) return "afternoon";
       return "evening";
@@ -2425,7 +2426,7 @@
       updateProgress();
       updatePendingDraftButton();
       document.getElementById("studyDayStatus").textContent =
-        `当前学习日：${formatPlanDate(studyDay)} · 每天早上8:00切换`;
+        `当前学习日：${formatPlanDate(studyDay)} · 每天早上${studyDayStartHour}:00切换`;
       renderedStudyDay = studyDay;
     }
 
