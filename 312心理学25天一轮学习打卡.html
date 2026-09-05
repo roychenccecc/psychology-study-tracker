@@ -477,6 +477,7 @@
       <div>
         <h1>312心理学滚动学习打卡</h1>
         <p class="subtitle">普心和统计进入每日复习；2026-07-08 起接实验、发展、教育、社会、测量</p>
+        <p class="subtitle" id="studyDayStatus" role="status"></p>
       </div>
       <div class="actions">
         <button id="todayBtn" class="primary" type="button">定位今天</button>
@@ -2391,7 +2392,26 @@
       updateRollingInfo();
     }
 
+    let renderedStudyDay = "";
+
+    function refreshStudyDay() {
+      if (todayISO() === renderedStudyDay) return false;
+      applyState();
+      return true;
+    }
+
+    function bindStudyDayRefresh() {
+      // Sleeping/background tabs may miss the timer, so recheck on return as well.
+      setInterval(refreshStudyDay, 30000);
+      window.addEventListener("focus", refreshStudyDay);
+      window.addEventListener("pageshow", refreshStudyDay);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") refreshStudyDay();
+      });
+    }
+
     function applyState() {
+      const studyDay = todayISO();
       const state = migrateState(readState());
       let backfilledDraft = backfillDevelopment2LearningDraft(state);
       if (backfillTodayLearningDrafts(state)) backfilledDraft = true;
@@ -2404,6 +2424,9 @@
       updateTaskStyles();
       updateProgress();
       updatePendingDraftButton();
+      document.getElementById("studyDayStatus").textContent =
+        `当前学习日：${formatPlanDate(studyDay)} · 每天早上8:00切换`;
+      renderedStudyDay = studyDay;
     }
 
     function bindState() {
@@ -2993,6 +3016,7 @@
     }
 
     function locateToday() {
+      refreshStudyDay();
       const diff = daysBetween(todayISO(), baseStartDate) + 1;
       const day = Math.min(Math.max(diff, 1), daily.length);
       const row = document.getElementById(`day-${day}`);
@@ -3061,6 +3085,7 @@
     renderChapters(measure, "measureChapters", "measure", ["听课", "做题"]);
     bindState();
     applyState();
+    bindStudyDayRefresh();
 
     document.getElementById("todayBtn").addEventListener("click", locateToday);
     document.getElementById("pendingDraftBtn").addEventListener("click", openPendingLearningDraft);
